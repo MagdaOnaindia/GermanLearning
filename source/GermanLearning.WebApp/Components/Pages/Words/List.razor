@@ -1,0 +1,169 @@
+﻿@page "/words"
+@using GermanLearning.Application.DTO.Vocabulary
+@inject IWordService WordService
+@rendermode InteractiveServer
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+    <MudText Typo="Typo.h5">Vocabulary List</MudText>
+
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect T="WordType" Label="Type" @bind-Value="_selectedType">
+                <MudSelectItem Value="WordType.None">(All)</MudSelectItem>
+                @foreach (var type in Enum.GetValues(typeof(WordType)).Cast<WordType>().Where(t => t != WordType.None))
+                {
+                    <MudSelectItem Value="@type">@type</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect T="Gender" Label="Gender" @bind-Value="_selectedGender">
+                <MudSelectItem Value="Gender.None">(All)</MudSelectItem>
+                @foreach (var gender in Enum.GetValues(typeof(Gender)).Cast<Gender>().Where(g => g != Gender.None))
+                {
+                    <MudSelectItem Value="@gender">@gender</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect T="string" Label="Topic" MultiSelection="true" @bind-SelectedValues="_selectedTopics"  >
+                @foreach (var topic in _allTopics)
+                {
+                    <MudSelectItem Value="@topic">@topic</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3" Class="d-flex align-center">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ApplyFilters">
+                Filter
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+
+    <MudTable  Items="_filteredWords" Hover="true" Bordered="true" Striped="true" SortLabel="Sort by" FixedHeader="true" >
+        <HeaderContent>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<WordDto, object>(w => w.GermanText)">German</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<WordDto, object>(w => w.EnglishTranslation)">EN</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<WordDto, object>(w => w.SpanishTranslation)">ES</MudTableSortLabel>
+            </MudTh>
+            <MudTh>Type</MudTh>
+            <MudTh>Gender</MudTh>
+            <MudTh>Topic</MudTh>
+            <MudTh>Synonyms</MudTh>
+            <MudTh>Examples</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+
+        <RowTemplate>
+            <MudTd>@context.GermanText</MudTd>
+            <MudTd>@context.EnglishTranslation</MudTd>
+            <MudTd>@context.SpanishTranslation</MudTd>
+            <MudTd>@context.Type</MudTd>
+            <MudTd>@context.Gender?.ToString()</MudTd>
+            <MudTd>@context.Topic</MudTd>
+            <MudTd>@string.Join(", ", context.Synonyms)</MudTd>
+            <MudTd>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Info"
+                           Size="Size.Small"
+                           OnClick="@(() => TogglePopover(context.Id))">
+                    Examples
+                </MudButton>
+
+                <MudPopover Open="@(_openPopoverId == context.Id)"
+                            AnchorOrigin="Origin.BottomCenter"
+                            TransformOrigin="Origin.TopCenter"
+                            CloseOnOutsideClick="true"
+                            Paper="true"
+                            OffsetY="true">
+                    <MudPaper Class="px-4 py-2">
+                        <MudText Typo="Typo.subtitle2">Example sentences:</MudText>
+                        <ul>
+                            @foreach (var example in context.ExampleSentences)
+                            {
+                                <li>@example</li>
+                            }
+                        </ul>
+                    </MudPaper>
+                </MudPopover>
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => EditWord(context.Id))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteWord(context.Id))" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+
+
+@code {
+    private List<WordDto> _allWords = new();
+    private List<WordDto> _filteredWords = new();
+    private List<string> _allTopics = new();
+
+    private WordType _selectedType = WordType.None;
+    private Gender _selectedGender = Gender.None;
+    private IEnumerable<string> _selectedTopics;
+
+    private Guid? _openPopoverId;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allWords = new List<WordDto>
+        {
+            new(Guid.NewGuid(), "Haus", "House", "Casa", WordType.Noun, Gender.Neutral, "Home", new List<string>{"Das Haus ist groß."}, new List<string>{"Gebäude"}, DateTime.Now, null),
+            new(Guid.NewGuid(), "gehen", "go", "ir", WordType.Verb, null, "Movement", new List<string>{"Ich gehe zur Schule."}, new List<string>{"laufen"}, DateTime.Now, null),
+            new(Guid.NewGuid(), "schnell", "fast", "rápido", WordType.Adjective, null, "Speed", new List<string>{"Er ist schnell."}, new List<string>{"rasch"}, DateTime.Now, null),
+            new(Guid.NewGuid(), "lernen", "learn", "aprender", WordType.Verb, null, "Education", new List<string>{"Ich lerne Deutsch."}, new List<string>{"studieren"}, DateTime.Now, null),
+            new(Guid.NewGuid(), "Buch", "book", "libro", WordType.Noun, Gender.Neutral, "Education", new List<string>{"Das Buch ist interessant."}, new List<string>{"Schriftwerk"}, DateTime.Now, null)
+        };
+
+        _allTopics = _allWords.Select(w => w.Topic).Where(t => !string.IsNullOrWhiteSpace(t)).Distinct().ToList();
+
+        _filteredWords = _allWords;
+    }
+
+
+
+    private void TogglePopover(Guid id)
+    {
+        if (_openPopoverId == id)
+            _openPopoverId = null;
+        else
+            _openPopoverId = id;
+    }
+
+
+    private void ApplyFilters()
+    {
+        _filteredWords = _allWords
+            .Where(w =>
+                (_selectedType == WordType.None || w.Type == _selectedType) &&
+                (_selectedGender == Gender.None || w.Gender == _selectedGender) &&
+                (_selectedTopics == null || _selectedTopics.Count() == 0 || (_selectedTopics.Contains(w.Topic ?? string.Empty)))
+            ).ToList();
+
+    }
+
+    private void EditWord(Guid id)
+    {
+        // Redirige a formulario de edición
+    }
+
+    private void DeleteWord(Guid id)
+    {
+        // Confirma y elimina
+    }
+}

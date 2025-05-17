@@ -1,0 +1,71 @@
+﻿:root {
+    --primary-color: #1976d2;
+    --background-color: #ffffff;
+    --border-color: #ddd;
+    --text-color: #333;
+    --spacing: 1rem;
+    --radius: 6px;
+    --input-height: 2.5rem;
+    --font-family: "Segoe UI", sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: var(--font-family);
+    color: var(--text-color);
+    background-color: #f9f9f9;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing);
+}
+
+input[type="text"],
+select,
+textarea {
+    height: var(--input-height);
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    font-size: 1rem;
+    transition: border-color 0.2s ease-in-out;
+    background-color: var(--background-color);
+}
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+        border-color: var(--primary-color);
+        outline: none;
+    }
+
+button {
+    height: var(--input-height);
+    padding: 0 1rem;
+    border: none;
+    border-radius: var(--radius);
+    background-color: var(--primary-color);
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+    button:hover {
+        background-color: #1565c0;
+    }
+
+h5, .subtitle {
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.mt-4 {
+    margin-top: 1.5rem;
+}

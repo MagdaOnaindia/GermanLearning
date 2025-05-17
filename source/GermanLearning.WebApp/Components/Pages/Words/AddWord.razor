@@ -1,0 +1,110 @@
+﻿@page "/words/add"
+@using GermanLearning.Application.Features.Vocabulary.Commands
+@using GermanLearning.Domain.Enums
+@using GermanLearning.Application.DTO.Vocabulary
+@inject IWordService WordService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+
+
+
+    <MudText Typo="Typo.h5">Add New Word</MudText>
+    <MudForm @ref="_form" OnValidSubmit="HandleValidSubmit">
+        <MudTextField Label="German" @bind-Value="_german" Required="true" />
+        <MudTextField Label="English" @bind-Value="_english" Required="true" />
+        <MudTextField Label="Spanish" @bind-Value="_spanish" Required="true" />
+
+        <MudSelect T="WordType" Label="Type" @bind-Value="_type" Required="true" Immediate="true">
+            @foreach (var t in Enum.GetValues<WordType>())
+            {
+                <MudSelectItem Value="@t">@t</MudSelectItem>
+            }
+        </MudSelect>
+
+        @if (_type == WordType.Noun)
+        {
+            <MudSelect T="Gender" Label="Gender" @bind-Value="_gender" Required="true">
+                @foreach (var g in Enum.GetValues<Gender>().Where(g => g != Gender.None))
+                {
+                    <MudSelectItem Value="@g">@g</MudSelectItem>
+                }
+            </MudSelect>
+        }
+
+        <MudTextField Label="Topic" @bind-Value="_topic" />
+
+        <MudText Typo="Typo.subtitle2">Example Sentences</MudText>
+        @for (int i = 0; i < _exampleSentences.Count(); i++)
+        {
+
+            var label = $"Example {i + 1}";
+            <MudTextField @bind-Value="_exampleSentences.ToArray()[i]" Label="@label" />
+
+        }
+
+        <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="AddExampleSentence">+ Add Sentence</MudButton>
+
+        <MudText Typo="Typo.subtitle2" Class="mt-4">Synonyms</MudText>
+            @for (int i = 0; i < _synonyms.Count(); i++)
+            {
+                        var label = $"Synonym {i + 1}";
+                <MudTextField @bind-Value="_synonyms.ToArray()[i]" Label="@label" />
+            }
+
+        <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="AddSynonym">+ Add Synonym</MudButton>
+
+        <MudButton Type="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4">
+            Save Word
+        </MudButton>
+    </MudForm>
+
+
+@code {
+    private MudForm _form;
+
+    private string _german;
+    private string _english;
+    private string _spanish;
+    private WordType _type = WordType.None;
+    private Gender _gender = Gender.None;
+    private string? _topic;
+    private List<string> _exampleSentences = new() { "" };
+    private List<string> _synonyms = new() { "" };
+
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            var command = new AddWordCommand(
+                GermanText: _german,
+                EnglishTranslation: _english,
+                SpanishTranslation: _spanish,
+                Type: _type,
+                Gender: _type == WordType.Noun ? _gender : null,
+                Topic: _topic,
+                ExampleSentences: _exampleSentences.Where(s => !string.IsNullOrWhiteSpace(s)).ToList(),
+                Synonyms: _synonyms.Where(s => !string.IsNullOrWhiteSpace(s)).ToList()
+            );
+
+            await WordService.AddWordAsync(command);
+
+            Navigation.NavigateTo("/words");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error adding word: {ex.Message}");
+            // TODO: Mostrar Snackbar o diálogo de error
+        }
+    }
+
+
+    private void AddExampleSentence() => _exampleSentences.Add("");
+    private void AddSynonym() => _synonyms.Add("");
+}
