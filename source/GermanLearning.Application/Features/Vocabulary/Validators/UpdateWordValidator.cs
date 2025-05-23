@@ -17,7 +17,10 @@ public class UpdateWordValidator : AbstractValidator<UpdateWordCommand>
 
         RuleFor(x => x.EnglishTranslation)
             .NotEmpty().WithMessage("English translation is required")
-            .MaximumLength(100).WithMessage("English translation must be less than 100 characters");
+            .WithMessage("English translation must be less than 100 characters");
+        RuleFor(x => x.SpanishTranslation)
+            .NotEmpty().WithMessage("Spanish translation is required")
+            .WithMessage("Spanish translation must be less than 100 characters");
 
         RuleFor(x => x.Type)
             .IsInEnum().WithMessage("Invalid word type");

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <None Remove="Components\Pages\Words\List.razor.css" />
@@ -14,13 +14,14 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.5" />
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.20.1" />
     <PackageReference Include="MudBlazor" Version="8.6.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\GermanLearning.Application\GermanLearning.Application.csproj" />
     <ProjectReference Include="..\GermanLearning.Domain\GermanLearning.Domain.csproj" />
-    <ProjectReference Include="..\GermanLearning.SQLInfrastructure\GermanLearning.SQLInfrastructure.csproj" />
+    <ProjectReference Include="..\GermanLearning.PostgreInfrastructure\GermanLearning.PostgreInfrastructure.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -28,6 +29,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 	  <ScopedCssEnabled>true</ScopedCssEnabled>
+	  <UserSecretsId>42e56122-b156-423f-8e9e-005905ae0b30</UserSecretsId>
+	  <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+	  <DockerComposeProjectPath>..\docker-compose.dcproj</DockerComposeProjectPath>
   </PropertyGroup>
 
 </Project>

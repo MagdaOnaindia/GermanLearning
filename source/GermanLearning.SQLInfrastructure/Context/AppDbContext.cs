@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Reflection.Emit;
 
-namespace GermanLearning.Infrastructure.Persistence.Contexts;
+namespace GermanLearning.SQLInfrastructure.Persistence.Contexts;
 
 public class AppDbContext : DbContext
 {

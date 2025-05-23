@@ -1,10 +1,10 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using GermanLearning.Infrastructure.Persistence.Contexts;
-using Microsoft.EntityFrameworkCore;
-using GermanLearning.Infrastructure.Services;
-using GermanLearning.Domain.Repositories.Interfaces;
 using GermanLearning.SQLInfrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
+using GermanLearning.Domain.Repositories.Interfaces;
+
+
 
 
 

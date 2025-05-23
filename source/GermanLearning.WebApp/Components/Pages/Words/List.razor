@@ -2,6 +2,7 @@
 @using GermanLearning.Application.DTO.Vocabulary
 @inject IWordService WordService
 @rendermode InteractiveServer
+@inject NavigationManager Navigation
 
 <MudThemeProvider />
 <MudPopoverProvider />
@@ -121,14 +122,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _allWords = new List<WordDto>
-        {
-            new(Guid.NewGuid(), "Haus", "House", "Casa", WordType.Noun, Gender.Neutral, "Home", new List<string>{"Das Haus ist groß."}, new List<string>{"Gebäude"}, DateTime.Now, null),
-            new(Guid.NewGuid(), "gehen", "go", "ir", WordType.Verb, null, "Movement", new List<string>{"Ich gehe zur Schule."}, new List<string>{"laufen"}, DateTime.Now, null),
-            new(Guid.NewGuid(), "schnell", "fast", "rápido", WordType.Adjective, null, "Speed", new List<string>{"Er ist schnell."}, new List<string>{"rasch"}, DateTime.Now, null),
-            new(Guid.NewGuid(), "lernen", "learn", "aprender", WordType.Verb, null, "Education", new List<string>{"Ich lerne Deutsch."}, new List<string>{"studieren"}, DateTime.Now, null),
-            new(Guid.NewGuid(), "Buch", "book", "libro", WordType.Noun, Gender.Neutral, "Education", new List<string>{"Das Buch ist interessant."}, new List<string>{"Schriftwerk"}, DateTime.Now, null)
-        };
+        _allWords = await WordService.GetAllWordsAsync();
 
         _allTopics = _allWords.Select(w => w.Topic).Where(t => !string.IsNullOrWhiteSpace(t)).Distinct().ToList();
 
@@ -159,7 +153,8 @@
 
     private void EditWord(Guid id)
     {
-        // Redirige a formulario de edición
+        Navigation.NavigateTo($"/words/edit/{id}");
+
     }
 
     private void DeleteWord(Guid id)

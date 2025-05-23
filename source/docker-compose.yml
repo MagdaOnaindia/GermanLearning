@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  germanlearning.webapp:
+    image: ${DOCKER_REGISTRY-}germanlearningwebapp
+    container_name: germanlearning.webapp
+    build:
+      context: .
+      dockerfile: GermanLearning.WebApp/Dockerfile
+    ports:
+      - "5000:8080" # .NET Kestrel por defecto escucha en el puerto 8080 HTTP y 8081 HTTPS dentro del contenedor.
+      - "5001:8081" # Ajusta si tu Dockerfile expone otros puertos o si configuras Kestrel de otra forma.
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development # O Production
+      - ASPNETCORE_URLS=http://+:8080;https://+:8081 # Asegura que Kestrel escuche en todas las IPs dentro del contenedor
+
+
+  germanlearning.database:
+    image: postgres:latest
+    container_name: germanlearning.database
+    environment: 
+      - POSTGRES_DB=germanlearning
+      - POSTGRES_USER=german
+      - POSTGRES_PASSWORD=german
+    volumes:
+      - ./.containers/german-db:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"

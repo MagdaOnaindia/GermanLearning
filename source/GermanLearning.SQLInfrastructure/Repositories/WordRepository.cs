@@ -1,7 +1,7 @@
 ﻿using GermanLearning.Domain.Entities;
 using GermanLearning.Domain.Enums;
 using GermanLearning.Domain.Repositories.Interfaces;
-using GermanLearning.Infrastructure.Persistence.Contexts;
+using GermanLearning.SQLInfrastructure.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;

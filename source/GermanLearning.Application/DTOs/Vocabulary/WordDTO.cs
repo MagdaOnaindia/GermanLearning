@@ -5,8 +5,8 @@ namespace GermanLearning.Application.DTO.Vocabulary;
 public record WordDto(
     Guid Id,
     string GermanText,
-    string EnglishTranslation,
-    string SpanishTranslation,
+    List<string> EnglishTranslation,
+    List<string> SpanishTranslation,
     WordType Type,
     Gender? Gender,
     string? Topic,

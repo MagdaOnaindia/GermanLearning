@@ -5,8 +5,8 @@ namespace GermanLearning.Application.Features.Vocabulary.Commands;
 public record UpdateWordCommand(
     Guid Id,
     string GermanText,
-    string EnglishTranslation,
-    string SpanishTranslation,
+    List<string> EnglishTranslation,
+    List<string> SpanishTranslation,
     WordType Type,
     Gender? Gender,
     string Topic,

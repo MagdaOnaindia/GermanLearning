@@ -52,3 +52,27 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# -------------------------------------------------------------------
+# ADICIONES ESPECÍFICAS PARA ESTE PROYECTO
+# -------------------------------------------------------------------
+
+# Docker persistent data (e.g., PostgreSQL volume)
+.containers/
+
+# Visual Studio IDE folder
+.vs/
+
+# Local environment variables file (if you use one)
+# .env
+# *.env.local
+
+# User specific files (if any)
+# Consider if appsettings.Development.json should be versioned or ignored.
+# If it contains secrets or machine-specific paths, it should be ignored
+# or use a .template and an ignored actual file.
+# Example:
+# appsettings.Local.json
+
+# Rider specific
+# .idea/

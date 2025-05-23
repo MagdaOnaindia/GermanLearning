@@ -7,8 +7,8 @@ namespace GermanLearning.Domain.Entities;
 public class Word : EntityBase 
 {
     public string GermanText { get; private set; }
-    public string EnglishTranslation { get; private set; }
-    public string SpanishTranslation { get; private set; }
+    public List<string> EnglishTranslation { get; private set; }
+    public List<string> SpanishTranslation { get; private set; }
     public WordType Type { get; private set; }
     public Gender? Gender { get; private set; }
     public string? Topic { get; private set; }
@@ -21,8 +21,8 @@ public class Word : EntityBase
 
     public Word(
         string germanText,
-        string englishTranslation,
-        string spanishTranslation,
+        List<string> englishTranslation,
+        List<string> spanishTranslation,
         WordType type,
         Gender? gender = null,
         string? topic = null,
@@ -45,8 +45,8 @@ public class Word : EntityBase
 
     public void Update(
         string germanText,
-        string englishTranslation,
-        string spanishTranslation,
+        List<string> englishTranslation,
+        List<string> spanishTranslation,
         WordType type,
         Gender? gender = null,
         string? topic = null,
@@ -69,7 +69,6 @@ public class Word : EntityBase
     private void Validate()
     {
         // Validate using business rules
-        CheckRule(new TranslationNotEmptyRule(GermanText, "German"));
         CheckRule(new TranslationNotEmptyRule(EnglishTranslation, "English"));
         CheckRule(new TranslationNotEmptyRule(SpanishTranslation, "Spanish"));
         CheckRule(new NounMustHaveGenderRule(Type, Gender));

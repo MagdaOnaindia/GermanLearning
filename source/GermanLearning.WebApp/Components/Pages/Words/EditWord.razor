@@ -1,0 +1,133 @@
+﻿@page "/words/edit/{Id:guid}"
+@using GermanLearning.Application.DTO.Vocabulary
+@using GermanLearning.Application.Features.Vocabulary.Commands
+@inject IWordService WordService
+@inject NavigationManager Navigation
+
+<!-- Puedes reutilizar el mismo formulario pero cargando los datos iniciales -->
+<MudText Typo="Typo.h5">Edit Word</MudText>
+<MudForm @ref="_form" OnValidSubmit="HandleValidSubmit">
+    <MudTextField Label="German" @bind-Value="_german" Required="true" />
+    <MudTextField Label="English" @bind-Value="_english" Required="true" />
+    <MudTextField Label="Spanish" @bind-Value="_spanish" Required="true" />
+
+    <MudSelect T="WordType" Label="Type" @bind-Value="_type" Required="true" Immediate="true">
+        @foreach (var t in Enum.GetValues<WordType>())
+        {
+            <MudSelectItem Value="@t">@t</MudSelectItem>
+        }
+    </MudSelect>
+
+    @if (_type == WordType.Noun)
+    {
+        <MudSelect T="Gender" Label="Gender" @bind-Value="_gender" Required="true">
+            @foreach (var g in Enum.GetValues<Gender>().Where(g => g != Gender.None))
+            {
+                <MudSelectItem Value="@g">@g</MudSelectItem>
+            }
+        </MudSelect>
+    }
+
+    <MudTextField Label="Topic" @bind-Value="_topic" />
+
+    <MudText Typo="Typo.subtitle2">Example Sentences</MudText>
+
+    @for (int i = 0; i < _exampleSentences.Count; i++)
+    {
+        var label = $"Example {i + 1}";
+        <MudTextField Label="@label" @bind-Value="_exampleSentences[i]" />
+        <MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="@(() => RemoveExampleSentence(i))" Color="Color.Error" />
+    }
+
+    <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="AddExampleSentence">+ Add Sentence</MudButton>
+
+
+    <MudText Typo="Typo.subtitle2" Class="mt-4">Synonyms</MudText>
+
+    @for (int i = 0; i < _synonyms.Count; i++)
+    {
+        var label = $"Synonym {i + 1}";
+        <MudTextField Label="@label" @bind-Value="_synonyms[i]" />
+        <MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="@(() => RemoveSynonym(i))" Color="Color.Error" />
+    }
+
+    <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="AddSynonym">+ Add Synonym</MudButton>
+
+
+    <MudButton Type="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4">
+        Update Word
+    </MudButton>
+</MudForm>
+
+<MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="DeleteWord" Class="mt-2">
+    Delete Word
+</MudButton>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private MudForm _form;
+    private string _german;
+    private List<string> _english;
+    private List<string> _spanish;
+    private WordType _type = WordType.None;
+    private Gender _gender = Gender.None;
+    private string? _topic;
+    private List<string> _exampleSentences = new() { "" };
+    private List<string> _synonyms = new() { "" };
+
+    WordDto word;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _german = word.GermanText;
+        _english = word.EnglishTranslation;
+        _spanish = word.SpanishTranslation;
+        _type = word.Type;
+        _gender = word.Gender ?? Gender.None;
+        _topic = word.Topic;
+        _exampleSentences = word.ExampleSentences?.ToList() ?? new() { "" };
+        _synonyms = word.Synonyms?.ToList() ?? new() { "" };
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        var command = new UpdateWordCommand(
+            Id: Id,
+            GermanText: _german,
+            EnglishTranslation: _english,
+            SpanishTranslation: _spanish,
+            Type: _type,
+            Gender: _type == WordType.Noun ? _gender : null,
+            Topic: _topic ?? "",
+            ExampleSentences: _exampleSentences.Where(s => !string.IsNullOrWhiteSpace(s)).ToList(),
+            Synonyms: _synonyms.Where(s => !string.IsNullOrWhiteSpace(s)).ToList()
+        );
+
+        await WordService.UpdateWordAsync(command);
+        Navigation.NavigateTo("/words");
+    }
+
+    private void AddExampleSentence() => _exampleSentences.Add("");
+
+    private void RemoveExampleSentence(int index)
+    {
+        if (_exampleSentences.Count > 1)
+            _exampleSentences.RemoveAt(index);
+    }
+
+    private void AddSynonym() => _synonyms.Add("");
+
+    private void RemoveSynonym(int index)
+    {
+        if (_synonyms.Count > 1)
+            _synonyms.RemoveAt(index);
+    }
+
+
+    private async Task DeleteWord()
+    {
+        await WordService.DeleteWordAsync(Id);
+        Navigation.NavigateTo("/words");
+    }
+}
