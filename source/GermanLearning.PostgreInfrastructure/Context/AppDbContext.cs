@@ -7,17 +7,6 @@ using System.Linq; // For Enum, Cast, Select
 namespace GermanLearning.PostgreInfrastructure.Contexts
 {
     // POCOs can be defined here as private nested classes for encapsulation
-    internal class WordTypeLookup
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-    }
-
-    internal class GenderLookup
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-    }
 
     public class AppDbContext : DbContext
     {

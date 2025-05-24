@@ -4,11 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GermanLearning.Application.DTOs.Vocabulary
+namespace GermanLearning.Domain.Entities
 {
-    public class GenderLookupDto
+    public class GenderLookup
     {
-        public int Id { get; set; } // Corresponds to Gender enum int value
+        public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
     }
 }

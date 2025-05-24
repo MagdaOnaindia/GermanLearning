@@ -16,7 +16,8 @@ public static class DependencyInjection
         services.AddScoped<IWordService, WordService>();
         services.AddScoped<IExerciseService, ExerciseService>();
         services.AddScoped<ITopicService, TopicService>();
-
+        services.AddScoped<IWordTypeLookupService, WordTypeLookupService>();
+        services.AddScoped<IGenderLookupService, GenderLookupService>();
         // Register Validators (FluentValidation)
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 

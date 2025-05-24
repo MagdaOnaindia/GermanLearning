@@ -83,8 +83,8 @@ public class Word : EntityBase
 
     private void Validate()
     {
-        CheckRule(new TranslationNotEmptyRule(EnglishTranslation, "English"));
-        CheckRule(new TranslationNotEmptyRule(SpanishTranslation, "Spanish"));
+        //CheckRule(new TranslationNotEmptyRule(EnglishTranslation, "English"));
+        //CheckRule(new TranslationNotEmptyRule(SpanishTranslation, "Spanish"));
         CheckRule(new NounMustHaveGenderRule(Type, Gender));
 
         if (ExampleSentences.Any(s => string.IsNullOrWhiteSpace(s)))

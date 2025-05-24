@@ -17,7 +17,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GermanLearning.SQLInfrastru
 EndProject
 Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-compose.dcproj", "{6EFAC7A9-978B-4F08-82EE-5A7DAF2E2810}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GermanLearning.PostgreInfrastructure", "GermanLearning.PostgreInfrastructure\GermanLearning.PostgreInfrastructure.csproj", "{18FF79FC-52C8-4E55-8A23-F02473D8FFE3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GermanLearning.PostgreInfrastructure", "GermanLearning.PostgreInfrastructure\GermanLearning.PostgreInfrastructure.csproj", "{47D78E40-84E7-4013-8BDF-4B558935EF68}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -50,10 +50,10 @@ Global
 		{6EFAC7A9-978B-4F08-82EE-5A7DAF2E2810}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6EFAC7A9-978B-4F08-82EE-5A7DAF2E2810}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6EFAC7A9-978B-4F08-82EE-5A7DAF2E2810}.Release|Any CPU.Build.0 = Release|Any CPU
-		{18FF79FC-52C8-4E55-8A23-F02473D8FFE3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{18FF79FC-52C8-4E55-8A23-F02473D8FFE3}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{18FF79FC-52C8-4E55-8A23-F02473D8FFE3}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{18FF79FC-52C8-4E55-8A23-F02473D8FFE3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{47D78E40-84E7-4013-8BDF-4B558935EF68}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{47D78E40-84E7-4013-8BDF-4B558935EF68}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{47D78E40-84E7-4013-8BDF-4B558935EF68}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{47D78E40-84E7-4013-8BDF-4B558935EF68}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

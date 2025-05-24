@@ -1,21 +1,25 @@
 ﻿@page "/words/add"
+
 @using GermanLearning.Application.DTOs.Vocabulary
 @using GermanLearning.Application.Features.Vocabulary.Commands
 @using GermanLearning.Domain.Enums
-@using GermanLearning.Application.DTO.Vocabulary // For TopicDto
+@using GermanLearning.Application.DTO.Vocabulary 
 @inject IWordService WordService
-@inject ITopicService TopicService //
+@inject ITopicService TopicService
+@inject IWordTypeLookupService WordTypeLookupService
+@inject IGenderLookupService GenderLookupService
 @inject NavigationManager Navigation
-@inject ISnackbar Snackbar // For error messages
+@inject ISnackbar Snackbar
 @rendermode InteractiveServer
 
 <MudThemeProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
+<MudPopoverProvider />
 
 <MudText Typo="Typo.h5">Add New Word</MudText>
 <EditForm Model="_command" OnValidSubmit="HandleValidSubmit">
-    <DataAnnotationsValidator /> @* Important for validating command annotations *@
+    <DataAnnotationsValidator />
     <MudGrid>
         <MudItem xs="12" md="6">
             <MudTextField Label="German" @bind-Value="_command.GermanText" For="@(() => _command.GermanText)" Required="true" />
@@ -23,34 +27,40 @@
 
         <MudItem xs="12" md="6">
             <MudSelect T="WordType" Label="Type" @bind-Value="_command.Type" For="@(() => _command.Type)" Required="true" Immediate="true">
-                @* Populate from lookup DTOs or enums if services not ready *@
-                @foreach (var typeLookup in _allWordTypes)
+                @if (_allWordTypesForSelect != null)
                 {
-                    <MudSelectItem Value="@((WordType)typeLookup.Id)">@typeLookup.Name</MudSelectItem>
+                    @foreach (var typeLookup in _allWordTypesForSelect)
+                    {
+                        <MudSelectItem T="WordType" @key="typeLookup.Id" Value="@((WordType)typeLookup.Id)">@typeLookup.Name</MudSelectItem>
+                    }
                 }
             </MudSelect>
 
             @if (_command.Type == WordType.Noun)
             {
-                <MudSelect T="Gender?" Label="Gender" @bind-Value="_command.Gender" For="@(() => _command.Gender)" Required="true">
-                    <MudSelectItem Value="@((Gender?)null)">(Select Gender)</MudSelectItem>
-                    @foreach (var genderLookup in _allGenders)
+                <MudSelect T="Gender?" Label="Gender" @bind-Value="_command.Gender" For="@(() => _command.Gender)" Required="@(_command.Type == WordType.Noun)">
+                    <MudSelectItem T="Gender?" Value="@((Gender?)null)">(Select Gender)</MudSelectItem>
+                    @if (_allGendersForSelect != null)
                     {
-                        <MudSelectItem Value="@((Gender)genderLookup.Id)">@genderLookup.Name</MudSelectItem>
+                        @foreach (var genderLookup in _allGendersForSelect)
+                        {
+                            <MudSelectItem T="Gender?" @key="genderLookup.Id" Value="@((Gender)genderLookup.Id)">@genderLookup.Name</MudSelectItem>
+                        }
                     }
                 </MudSelect>
             }
         </MudItem>
 
+        @* ... Rest of your form (Translations, Topics, Examples, Synonyms) ... *@
         <MudItem xs="12">
             <MudText Typo="Typo.h6" Class="mt-4 mb-2">Translations</MudText>
             <MudField Label="English Translations" Variant="Variant.Outlined" Class="mb-3">
                 @for (int i = 0; i < _command.EnglishTranslation.Count; i++)
                 {
-                    var index = i; //  Capture variable for lambda
+                    var index = i;
                     <MudPaper Elevation="0" Class="d-flex align-center pa-1 mb-1">
                         <MudTextField @bind-Value="_command.EnglishTranslation[index]" Dense="true" Margin="Margin.Dense" HideDetails="true" Placeholder="@($"English Translation {index + 1}")" Class="flex-grow-1" />
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => RemoveListItem(_command.EnglishTranslation, index))" Disabled="_command.EnglishTranslation.Count <= 1" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => RemoveListItem(_command.EnglishTranslation, index))" Disabled="_command.EnglishTranslation.Count <= 1 && string.IsNullOrWhiteSpace(_command.EnglishTranslation[0])" />
                     </MudPaper>
                 }
                 <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="@(() => AddListItem(_command.EnglishTranslation))" StartIcon="@Icons.Material.Filled.Add" Class="mt-1">Add English</MudButton>
@@ -59,10 +69,10 @@
             <MudField Label="Spanish Translations" Variant="Variant.Outlined">
                 @for (int i = 0; i < _command.SpanishTranslation.Count; i++)
                 {
-                    var index = i; //  Capture variable for lambda
+                    var index = i;
                     <MudPaper Elevation="0" Class="d-flex align-center pa-1 mb-1">
                         <MudTextField @bind-Value="_command.SpanishTranslation[index]" Dense="true" Margin="Margin.Dense" HideDetails="true" Placeholder="@($"Spanish Translation {index + 1}")" Class="flex-grow-1" />
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => RemoveListItem(_command.SpanishTranslation, index))" Disabled="_command.SpanishTranslation.Count <= 1" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => RemoveListItem(_command.SpanishTranslation, index))" Disabled="_command.SpanishTranslation.Count <= 1 && string.IsNullOrWhiteSpace(_command.SpanishTranslation[0])" />
                     </MudPaper>
                 }
                 <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="@(() => AddListItem(_command.SpanishTranslation))" StartIcon="@Icons.Material.Filled.Add" Class="mt-1">Add Spanish</MudButton>
@@ -71,12 +81,12 @@
 
         <MudItem xs="12">
             <MudSelect T="string" Label="Topics" MultiSelection="true" @bind-SelectedValues="_selectedTopicNamesForForm"
-                       HelperText="Select one or more topics. New topics can be added via Topic Management." Clearable="true" SelectAll="true">
+                       HelperText="Select one or more topics." Clearable="true" SelectAll="true">
                 @if (_allTopicsForSelect != null)
                 {
                     @foreach (var topic in _allTopicsForSelect)
                     {
-                        <MudSelectItem Value="@topic.Name">@topic.Name</MudSelectItem>
+                        <MudSelectItem T="string" @key="topic.Id" Value="@topic.Name">@topic.Name</MudSelectItem>
                     }
                 }
             </MudSelect>
@@ -128,61 +138,71 @@
 </EditForm>
 
 @code {
-    private AddWordCommand _command = new();
+    private AddWordCommand _command = new()
+        {
+            // Initialize lists to prevent issues if accessed before OnInitializedAsync completes fully
+            // or if AddListItem is called very early by some user interaction.
+            EnglishTranslation = new List<string> { "" },
+            SpanishTranslation = new List<string> { "" },
+            ExampleSentences = new List<string> { "" },
+            Synonyms = new List<string> { "" },
+            TopicNames = new List<string>()
+        };
+
     private List<TopicDto> _allTopicsForSelect = new();
-    private IEnumerable<string> _selectedTopicNamesForForm = new List<string>(); // For binding MudSelect
+    private IEnumerable<string> _selectedTopicNamesForForm = new List<string>();
     private bool _isSaving = false;
 
-    // For populating Type/Gender dropdowns
-    private List<WordTypeLookUpDto> _allWordTypes = new();
-    private List<GenderLookUpDto> _allGenders = new();
+    private List<WordTypeLookupDto> _allWordTypesForSelect = new();
+    private List<GenderLookupDto> _allGendersForSelect = new();
 
     protected override async Task OnInitializedAsync()
     {
-        // Ensure default lists have at least one item for the UI
+        // Ensure default lists have at least one item for the UI if not already initialized
+        // This check is now less critical due to initialization in _command declaration
         if (!_command.EnglishTranslation.Any()) _command.EnglishTranslation.Add("");
         if (!_command.SpanishTranslation.Any()) _command.SpanishTranslation.Add("");
         if (!_command.ExampleSentences.Any()) _command.ExampleSentences.Add("");
         if (!_command.Synonyms.Any()) _command.Synonyms.Add("");
 
-        _allTopicsForSelect = await TopicService.GetAllTopicsAsync();
-
-        // Populate WordType and Gender lookups
-        _allWordTypes = Enum.GetValues<WordType>()
-                            .Select(wt => new WordTypeLookUpDto { Id = (int)wt, Name = wt.ToString() })
-                            .ToList();
-        _allGenders = Enum.GetValues<Gender>()
-                            .Select(g => new GenderLookUpDto { Id = (int)g, Name = g.ToString() })
-                            .Where(g => g.Id != (int)Gender.None) // Exclude "None" if it's a placeholder
-                            .ToList();
+        try
+        {
+            _allTopicsForSelect = await TopicService.GetAllTopicsAsync();
+            _allWordTypesForSelect = await WordTypeLookupService.GetAllAsync();
+            _allGendersForSelect = await GenderLookupService.GetAllAsync(excludeNone: true);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data for form: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Error loading form data: {ex.Message}{Environment.NewLine}{ex.StackTrace}");
+            // Handle case where data loading fails, e.g., navigate away or show error message
+        }
     }
 
     private async Task HandleValidSubmit()
     {
         _isSaving = true;
+        StateHasChanged(); // Update UI to show saving state
+
         try
         {
-            // Assign selected topic names to the command
             _command.TopicNames = _selectedTopicNamesForForm.ToList();
-
-            // Filter out empty strings from lists before sending
             _command.EnglishTranslation = _command.EnglishTranslation.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
             _command.SpanishTranslation = _command.SpanishTranslation.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
             _command.ExampleSentences = _command.ExampleSentences.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
             _command.Synonyms = _command.Synonyms.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
 
-            // Ensure Noun has a Gender, otherwise set Gender to null
             if (_command.Type != WordType.Noun)
             {
                 _command.Gender = null;
             }
-            else if (_command.Gender == Gender.None) // If it's a Noun, Gender.None is not valid
+            else if (_command.Gender == null || _command.Gender == Gender.None)
             {
                 Snackbar.Add("Nouns must have a Gender selected.", Severity.Error);
                 _isSaving = false;
+                StateHasChanged(); // Update UI
                 return;
             }
-
 
             await WordService.AddWordAsync(_command);
             Snackbar.Add("Word added successfully!", Severity.Success);
@@ -203,27 +223,26 @@
         finally
         {
             _isSaving = false;
+            StateHasChanged(); // Ensure UI updates after saving attempt
         }
     }
 
-    // Helper methods for dynamic lists
     private void AddListItem(List<string> list)
     {
         list.Add("");
-        StateHasChanged(); // Notify Blazor to re-render
+        // StateHasChanged(); // Usually not needed if list is part of Model bound to EditForm
     }
 
     private void RemoveListItem(List<string> list, int index)
     {
-        if (list.Count > 1) // Prevent removing the last item if you want at least one input field
+        if (list.Count > 1)
         {
             list.RemoveAt(index);
-            StateHasChanged();
         }
-        else if (list.Count == 1) // If it's the last one, clear it instead of removing
+        else if (list.Count == 1)
         {
             list[0] = "";
-            StateHasChanged();
         }
+        // StateHasChanged(); // Usually not needed
     }
 }

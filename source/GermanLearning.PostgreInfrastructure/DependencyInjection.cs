@@ -32,6 +32,8 @@ namespace GermanLearning.PostgreInfrastructure
             services.AddScoped<IExerciseRepository, ExerciseRepository>();
             services.AddScoped<ITopicRepository, TopicRepository>();
             services.AddSingleton<IDateTimeService, DateTimeService>();
+            services.AddScoped<IWordTypeLookupRepository, WordTypeLookupRepository>();
+            services.AddScoped<IGenderLookupRepository, GenderLookupRepository>();
 
             return services;
         }

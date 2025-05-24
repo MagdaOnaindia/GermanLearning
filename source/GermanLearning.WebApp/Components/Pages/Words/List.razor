@@ -1,10 +1,13 @@
 ﻿@page "/words"
 @using GermanLearning.Application.DTO.Vocabulary
+@using GermanLearning.Application.DTOs 
 @using GermanLearning.Application.DTOs.Vocabulary
 @using GermanLearning.Domain.Enums 
 
 @inject IWordService WordService
-@inject ITopicService TopicService // <<< INJECT ITOPICSERVICE
+@inject ITopicService TopicService
+@inject IWordTypeLookupService WordTypeLookupService
+@inject IGenderLookupService GenderLookupService     
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
 
@@ -16,63 +19,85 @@
 <MudText Typo="Typo.h5">Vocabulary List</MudText>
 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo("/words/add"))" Style="margin-bottom: 20px;">Add New Word</MudButton>
 
-<MudGrid Class="mb-4">
-    <MudItem xs="12" sm="6" md="3">
-        @* Bind to the int value of the enum for filtering against WordTypeId *@
-        <MudSelect T="int?" Label="Type" @bind-Value="_selectedWordTypeId" Clearable="true">
-            <MudSelectItem Value="@((int?)null)">(All)</MudSelectItem>
-            @foreach (var typeLookup in _allWordTypes)
-            {
-                <MudSelectItem Value="@typeLookup.Id">@typeLookup.Name</MudSelectItem>
-            }
-        </MudSelect>
-    </MudItem>
-
-    <MudItem xs="12" sm="6" md="3">
-        <MudSelect T="int?" Label="Gender" @bind-Value="_selectedGenderId" Clearable="true">
-            <MudSelectItem Value="@((int?)null)">(All)</MudSelectItem>
-            @foreach (var genderLookup in _allGenders)
-            {
-                <MudSelectItem Value="@genderLookup.Id">@genderLookup.Name</MudSelectItem>
-            }
-        </MudSelect>
-    </MudItem>
-
-    <MudItem xs="12" sm="6" md="3">
-        <MudSelect T="string" Label="Topic" MultiSelection="true" @bind-SelectedValues="_selectedTopicNames" Clearable="true" SelectAll="true" SelectAllText="Select All Topics">
-            @if (_allTopicsForFilter != null)
-            {
-                @foreach (var topic in _allTopicsForFilter)
+<MudPaper Elevation="2" Class="pa-4 mb-4">
+    <MudText Typo="Typo.h6" GutterBottom="true">Filters</MudText>
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect T="int?" Label="Type" @bind-Value="_selectedWordTypeId" Clearable="true" Variant="Variant.Outlined" Dense="true">
+                <MudSelectItem T="int?" Value="@((int?)null)">(All Types)</MudSelectItem>
+                @if (_allWordTypesForFilter != null)
                 {
-                    <MudSelectItem Value="@topic.Name">@topic.Name</MudSelectItem>
+                    @foreach (var typeLookup in _allWordTypesForFilter)
+                    {
+                        <MudSelectItem T="int?" Value="@((int?)typeLookup.Id)">@typeLookup.Name</MudSelectItem>
+                    }
                 }
-            }
-        </MudSelect>
-    </MudItem>
+            </MudSelect>
+        </MudItem>
 
-    <MudItem xs="12" sm="6" md="3" Class="d-flex align-center">
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ApplyFilters" Class="mr-2">Filter</MudButton>
-        <MudButton Variant="Variant.Outlined" OnClick="ClearFilters">Clear</MudButton>
-    </MudItem>
-</MudGrid>
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect T="int?" Label="Gender" @bind-Value="_selectedGenderId" Clearable="true" Variant="Variant.Outlined" Dense="true">
+                <MudSelectItem T="int?" Value="@((int?)null)">(All Genders)</MudSelectItem>
+                @if (_allGendersForFilter != null)
+                {
+                    @foreach (var genderLookup in _allGendersForFilter)
+                    {
+                        <MudSelectItem T="int?" Value="@((int?)genderLookup.Id)">@genderLookup.Name</MudSelectItem>
+                    }
+                }
+            </MudSelect>
+        </MudItem>
 
-@if (_filteredWords == null)
+        <MudItem xs="12" sm="12" md="4">
+            <MudSelect T="string" Label="Topics" MultiSelection="true" @bind-SelectedValues="_selectedTopicNames"
+                       Clearable="true" SelectAll="true" SelectAllText="All Topics" Variant="Variant.Outlined" Dense="true">
+                @if (_allTopicsForFilter != null)
+                {
+                    @foreach (var topic in _allTopicsForFilter)
+                    {
+                        <MudSelectItem Value="@topic.Name">@topic.Name</MudSelectItem>
+                    }
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" md="2" Class="d-flex align-end">
+            @* align-end for button vertical alignment *@
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ApplyFilters" Class="mr-2 full-width">Filter</MudButton>
+            <MudTooltip Text="Clear All Filters">
+                <MudIconButton Icon="@Icons.Material.Filled.Clear" OnClick="ClearFilters" Color="Color.Default" />
+            </MudTooltip>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+
+@if (_filteredWords == null && _isLoading) // Show loading only during initial load
 {
-    <MudProgressCircular Indeterminate="true" />
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" Class="d-flex mx-auto my-8" />
+    <MudText Align="Align.Center">Loading words...</MudText>
 }
-else
+else if (_filteredWords != null && !_filteredWords.Any() && _allWords != null && _allWords.Any()) // Filters applied, no results
 {
-    <MudTable Items="_filteredWords" Hover="true" Bordered="true" Striped="true" Dense="true" FixedHeader="true" Height="calc(100vh - 350px)">
+    <MudAlert Severity="Severity.Info" Class="mt-4">No words match the current filter criteria.</MudAlert>
+}
+else if (_filteredWords != null && !_filteredWords.Any() && (_allWords == null || !_allWords.Any())) // No words at all
+{
+    <MudAlert Severity="Severity.Normal" Class="mt-4">No words found. Try adding some!</MudAlert>
+}
+else if (_filteredWords != null)
+{
+    <MudTable Items="_filteredWords" Hover="true" Bordered="true" Striped="true" Dense="true" FixedHeader="true" Height="calc(100vh - 400px)">
         <HeaderContent>
             <MudTh><MudTableSortLabel SortBy="new Func<WordDto, object>(w => w.GermanText)">German</MudTableSortLabel></MudTh>
             <MudTh>EN Translations</MudTh>
             <MudTh>ES Translations</MudTh>
-            <MudTh>Type</MudTh>
-            <MudTh>Gender</MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<WordDto, object>(w => w.TypeString)">Type</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<WordDto, object?>(w => w.GenderString)">Gender</MudTableSortLabel></MudTh>
             <MudTh>Topics</MudTh>
             <MudTh>Synonyms</MudTh>
             <MudTh>Examples</MudTh>
-            <MudTh>Actions</MudTh>
+            <MudTh Style="width: 120px;">Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="German">@context.GermanText</MudTd>
@@ -80,10 +105,12 @@ else
             <MudTd DataLabel="ES Translations">@string.Join(", ", context.SpanishTranslation)</MudTd>
             <MudTd DataLabel="Type">@context.TypeString</MudTd>
             <MudTd DataLabel="Gender">@context.GenderString</MudTd>
-            <MudTd DataLabel="Topics">@string.Join(", ", context.TopicNames)</MudTd>
+            <MudTd DataLabel="Topics" Style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="@string.Join(", ", context.TopicNames)">
+                @string.Join(", ", context.TopicNames)
+            </MudTd>
             <MudTd DataLabel="Synonyms">@string.Join(", ", context.Synonyms)</MudTd>
             <MudTd DataLabel="Examples">
-                @if (context.ExampleSentences.Any())
+                @if (context.ExampleSentences != null && context.ExampleSentences.Any())
                 {
                     <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" OnClick="@(() => ShowExamples(context.ExampleSentences))">
                         View (@context.ExampleSentences.Count)
@@ -94,13 +121,13 @@ else
                     <MudText Typo="Typo.caption">None</MudText>
                 }
             </MudTd>
-            <MudTd DataLabel="Actions">
+            <MudTd DataLabel="Actions" Style="text-align:center">
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Title="Edit" Color="Color.Primary" Size="Size.Small" OnClick="@(() => EditWord(context.Id))" />
                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Title="Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => ConfirmDelete(context.Id, context.GermanText))" />
             </MudTd>
         </RowTemplate>
         <PagerContent>
-            <MudTablePager />
+            <MudTablePager RowsPerPageString="Words per page" />
         </PagerContent>
     </MudTable>
 }
@@ -108,11 +135,12 @@ else
 @code {
     private List<WordDto>? _allWords;
     private List<WordDto>? _filteredWords;
+    private bool _isLoading = true;
 
     // For filter dropdowns
     private List<TopicDto> _allTopicsForFilter = new();
-    private List<WordTypeLookUpDto> _allWordTypes = new();
-    private List<GenderLookUpDto> _allGenders = new();
+    private List<WordTypeLookupDto> _allWordTypesForFilter = new();
+    private List<GenderLookupDto> _allGendersForFilter = new();
 
     // Bound filter values
     private int? _selectedWordTypeId;
@@ -128,21 +156,34 @@ else
         await LoadInitialData();
     }
 
+    // In List.razor @code block
     private async Task LoadInitialData()
     {
-        _allWords = await WordService.GetAllWordsAsync();
-        _allTopicsForFilter = await TopicService.GetAllTopicsAsync(); // Fetch all topics
-
-        // Populate WordType and Gender lookups (replace with service calls if available)
-        _allWordTypes = Enum.GetValues<WordType>()
-                            .Select(wt => new WordTypeLookUpDto { Id = (int)wt, Name = wt.ToString() })
-                            .ToList();
-        _allGenders = Enum.GetValues<Gender>()
-                            .Select(g => new GenderLookUpDto { Id = (int)g, Name = g.ToString() })
-                            .Where(g => g.Id != (int)Gender.None) // Exclude "None" if it's just a placeholder
-                            .ToList();
-        
-        ApplyFilters(); // Apply initial (empty) filters
+        _isLoading = true;
+        try
+        {
+            // Fetch data sequentially to avoid DbContext concurrency issues
+            _allWords = await WordService.GetAllWordsAsync();
+            _allTopicsForFilter = await TopicService.GetAllTopicsAsync();
+            _allWordTypesForFilter = await WordTypeLookupService.GetAllAsync();
+            _allGendersForFilter = await GenderLookupService.GetAllAsync(excludeNone: true);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading initial data: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Error loading initial data: {ex.Message}{Environment.NewLine}{ex.StackTrace}");
+            _allWords = new List<WordDto>();
+            _allTopicsForFilter = new List<TopicDto>();
+            _allWordTypesForFilter = new List<WordTypeLookupDto>();
+            _allGendersForFilter = new List<GenderLookupDto>();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+        ApplyFilters(); // This should be fine here, as it operates on in-memory lists
+                        // If ApplyFilters itself also made async DB calls, you'd need to be careful too.
+                        // Your current ApplyFilters looks like it's client-side filtering.
     }
 
     private void ApplyFilters()
@@ -150,6 +191,7 @@ else
         if (_allWords == null)
         {
             _filteredWords = new List<WordDto>();
+            StateHasChanged(); // Ensure UI updates if _allWords was null
             return;
         }
 
@@ -157,7 +199,6 @@ else
 
         if (_selectedWordTypeId.HasValue)
         {
-            // Compare against the integer value of the enum
             tempFiltered = tempFiltered.Where(w => (int)w.Type == _selectedWordTypeId.Value);
         }
 
@@ -166,12 +207,13 @@ else
             tempFiltered = tempFiltered.Where(w => w.Gender.HasValue && (int)w.Gender.Value == _selectedGenderId.Value);
         }
 
-        if (_selectedTopicNames.Any())
+        if (_selectedTopicNames != null && _selectedTopicNames.Any())
         {
-            tempFiltered = tempFiltered.Where(w => w.TopicNames.Any(tn => _selectedTopicNames.Contains(tn)));
+            tempFiltered = tempFiltered.Where(w => w.TopicNames != null && w.TopicNames.Any(tn => _selectedTopicNames.Contains(tn, StringComparer.OrdinalIgnoreCase)));
         }
 
         _filteredWords = tempFiltered.ToList();
+        StateHasChanged(); // Update UI after filtering
     }
 
     private void ClearFilters()
@@ -189,31 +231,34 @@ else
 
     private async Task ConfirmDelete(Guid id, string wordText)
     {
-        var parameters = new DialogParameters<DeleteConfirmationDialog>();
-        parameters.Add(x => x.ContentText, $"Are you sure you want to delete the word '{wordText}'?");
-        
+        var parameters = new DialogParameters<DeleteConfirmationDialog>
+            {
+                [nameof(DeleteConfirmationDialog.ContentText)] = $"Are you sure you want to delete the word '{wordText}'?"
+            };
+
         var dialog = DialogService.Show<DeleteConfirmationDialog>("Confirm Deletion", parameters);
         var result = await dialog.Result;
 
-        if (!result.Canceled)
+        if (result != null && !result.Canceled)
         {
             try
             {
                 await WordService.DeleteWordAsync(id);
                 Snackbar.Add($"Word '{wordText}' deleted successfully.", Severity.Success);
-                _allWords?.RemoveAll(w => w.Id == id); // Remove from local list
-                ApplyFilters(); // Re-apply filters
+                _allWords?.RemoveAll(w => w.Id == id);
+                ApplyFilters();
             }
             catch (Exception ex)
             {
                 Snackbar.Add($"Error deleting word: {ex.Message}", Severity.Error);
+                Console.WriteLine($"Error deleting word: {ex.Message}{Environment.NewLine}{ex.StackTrace}");
             }
         }
     }
 
     private void ShowExamples(List<string> examples)
     {
-        var parameters = new DialogParameters<ExampleDialog> { ["Examples"] = examples };
+        var parameters = new DialogParameters<ExampleDialog> { [nameof(ExampleDialog.Examples)] = examples };
         DialogService.Show<ExampleDialog>("Example Sentences", parameters);
     }
 }
