@@ -1,13 +1,12 @@
 ﻿@page "/words"
 @using GermanLearning.Application.DTO.Vocabulary
-@using GermanLearning.Application.DTOs 
 @using GermanLearning.Application.DTOs.Vocabulary
-@using GermanLearning.Domain.Enums 
+@using GermanLearning.Domain.Enums
 
 @inject IWordService WordService
 @inject ITopicService TopicService
 @inject IWordTypeLookupService WordTypeLookupService
-@inject IGenderLookupService GenderLookupService     
+@inject IGenderLookupService GenderLookupService
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
 
@@ -29,7 +28,7 @@
                 {
                     @foreach (var typeLookup in _allWordTypesForFilter)
                     {
-                        <MudSelectItem T="int?" Value="@((int?)typeLookup.Id)">@typeLookup.Name</MudSelectItem>
+                        <MudSelectItem T="int?" @key="typeLookup.Id" Value="@((int?)typeLookup.Id)">@typeLookup.Name</MudSelectItem> @* ADDED @key *@
                     }
                 }
             </MudSelect>
@@ -42,7 +41,7 @@
                 {
                     @foreach (var genderLookup in _allGendersForFilter)
                     {
-                        <MudSelectItem T="int?" Value="@((int?)genderLookup.Id)">@genderLookup.Name</MudSelectItem>
+                        <MudSelectItem T="int?" @key="genderLookup.Id" Value="@((int?)genderLookup.Id)">@genderLookup.Name</MudSelectItem> @* ADDED @key *@
                     }
                 }
             </MudSelect>
@@ -55,14 +54,13 @@
                 {
                     @foreach (var topic in _allTopicsForFilter)
                     {
-                        <MudSelectItem Value="@topic.Name">@topic.Name</MudSelectItem>
+                        <MudSelectItem T="string" @key="topic.Id" Value="@topic.Name">@topic.Name</MudSelectItem> @* ADDED @key and T, assuming TopicDto has Id *@
                     }
                 }
             </MudSelect>
         </MudItem>
 
         <MudItem xs="12" md="2" Class="d-flex align-end">
-            @* align-end for button vertical alignment *@
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ApplyFilters" Class="mr-2 full-width">Filter</MudButton>
             <MudTooltip Text="Clear All Filters">
                 <MudIconButton Icon="@Icons.Material.Filled.Clear" OnClick="ClearFilters" Color="Color.Default" />
@@ -72,16 +70,16 @@
 </MudPaper>
 
 
-@if (_filteredWords == null && _isLoading) // Show loading only during initial load
+@if (_filteredWords == null && _isLoading)
 {
     <MudProgressCircular Indeterminate="true" Color="Color.Primary" Class="d-flex mx-auto my-8" />
     <MudText Align="Align.Center">Loading words...</MudText>
 }
-else if (_filteredWords != null && !_filteredWords.Any() && _allWords != null && _allWords.Any()) // Filters applied, no results
+else if (_filteredWords != null && !_filteredWords.Any() && _allWords != null && _allWords.Any())
 {
     <MudAlert Severity="Severity.Info" Class="mt-4">No words match the current filter criteria.</MudAlert>
 }
-else if (_filteredWords != null && !_filteredWords.Any() && (_allWords == null || !_allWords.Any())) // No words at all
+else if (_filteredWords != null && !_filteredWords.Any() && (_allWords == null || !_allWords.Any()))
 {
     <MudAlert Severity="Severity.Normal" Class="mt-4">No words found. Try adding some!</MudAlert>
 }
@@ -137,12 +135,10 @@ else if (_filteredWords != null)
     private List<WordDto>? _filteredWords;
     private bool _isLoading = true;
 
-    // For filter dropdowns
     private List<TopicDto> _allTopicsForFilter = new();
     private List<WordTypeLookupDto> _allWordTypesForFilter = new();
     private List<GenderLookupDto> _allGendersForFilter = new();
 
-    // Bound filter values
     private int? _selectedWordTypeId;
     private int? _selectedGenderId;
     private IEnumerable<string> _selectedTopicNames = new List<string>();
@@ -150,19 +146,17 @@ else if (_filteredWords != null)
     [Inject] private IDialogService DialogService { get; set; } = default!;
     [Inject] private ISnackbar Snackbar { get; set; } = default!;
 
-
     protected override async Task OnInitializedAsync()
     {
         await LoadInitialData();
     }
 
-    // In List.razor @code block
     private async Task LoadInitialData()
     {
         _isLoading = true;
+        StateHasChanged(); // Show loading indicator immediately
         try
         {
-            // Fetch data sequentially to avoid DbContext concurrency issues
             _allWords = await WordService.GetAllWordsAsync();
             _allTopicsForFilter = await TopicService.GetAllTopicsAsync();
             _allWordTypesForFilter = await WordTypeLookupService.GetAllAsync();
@@ -181,9 +175,7 @@ else if (_filteredWords != null)
         {
             _isLoading = false;
         }
-        ApplyFilters(); // This should be fine here, as it operates on in-memory lists
-                        // If ApplyFilters itself also made async DB calls, you'd need to be careful too.
-                        // Your current ApplyFilters looks like it's client-side filtering.
+        ApplyFilters(); // This also calls StateHasChanged implicitly if _filteredWords changes or explicitly at the end
     }
 
     private void ApplyFilters()
@@ -191,29 +183,28 @@ else if (_filteredWords != null)
         if (_allWords == null)
         {
             _filteredWords = new List<WordDto>();
-            StateHasChanged(); // Ensure UI updates if _allWords was null
-            return;
         }
-
-        IEnumerable<WordDto> tempFiltered = _allWords;
-
-        if (_selectedWordTypeId.HasValue)
+        else
         {
-            tempFiltered = tempFiltered.Where(w => (int)w.Type == _selectedWordTypeId.Value);
-        }
+            IEnumerable<WordDto> tempFiltered = _allWords;
 
-        if (_selectedGenderId.HasValue)
-        {
-            tempFiltered = tempFiltered.Where(w => w.Gender.HasValue && (int)w.Gender.Value == _selectedGenderId.Value);
-        }
+            if (_selectedWordTypeId.HasValue)
+            {
+                tempFiltered = tempFiltered.Where(w => (int)w.Type == _selectedWordTypeId.Value);
+            }
 
-        if (_selectedTopicNames != null && _selectedTopicNames.Any())
-        {
-            tempFiltered = tempFiltered.Where(w => w.TopicNames != null && w.TopicNames.Any(tn => _selectedTopicNames.Contains(tn, StringComparer.OrdinalIgnoreCase)));
-        }
+            if (_selectedGenderId.HasValue)
+            {
+                tempFiltered = tempFiltered.Where(w => w.Gender.HasValue && (int)w.Gender.Value == _selectedGenderId.Value);
+            }
 
-        _filteredWords = tempFiltered.ToList();
-        StateHasChanged(); // Update UI after filtering
+            if (_selectedTopicNames != null && _selectedTopicNames.Any())
+            {
+                tempFiltered = tempFiltered.Where(w => w.TopicNames != null && w.TopicNames.Any(tn => _selectedTopicNames.Contains(tn, StringComparer.OrdinalIgnoreCase)));
+            }
+            _filteredWords = tempFiltered.ToList();
+        }
+        StateHasChanged();
     }
 
     private void ClearFilters()
@@ -246,7 +237,7 @@ else if (_filteredWords != null)
                 await WordService.DeleteWordAsync(id);
                 Snackbar.Add($"Word '{wordText}' deleted successfully.", Severity.Success);
                 _allWords?.RemoveAll(w => w.Id == id);
-                ApplyFilters();
+                ApplyFilters(); // This will update _filteredWords and call StateHasChanged
             }
             catch (Exception ex)
             {

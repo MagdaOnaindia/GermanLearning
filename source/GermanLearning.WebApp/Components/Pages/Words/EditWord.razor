@@ -1,13 +1,12 @@
 ﻿@page "/words/edit/{Id:guid}"
 @using GermanLearning.Application.DTO.Vocabulary
-@using GermanLearning.Application.DTOs
 @using GermanLearning.Application.DTOs.Vocabulary
 @using GermanLearning.Application.Features.Vocabulary.Commands
 @using GermanLearning.Domain.Enums
 @inject IWordService WordService
 @inject ITopicService TopicService
-@inject IWordTypeLookupService WordTypeLookupService 
-@inject IGenderLookupService GenderLookupService    
+@inject IWordTypeLookupService WordTypeLookupService
+@inject IGenderLookupService GenderLookupService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @rendermode InteractiveServer
@@ -22,7 +21,7 @@
     <MudText Typo="Typo.h5" Class="mb-4">Loading word...</MudText>
     <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
 }
-else if (_command == null && !_isLoading) // Word not found after attempting to load
+else if (_command == null && !_isLoading)
 {
     <MudAlert Severity="Severity.Error">Word not found. It may have been deleted.</MudAlert>
     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo("/words"))" Class="mt-4">Back to List</MudButton>
@@ -38,12 +37,13 @@ else if (_command != null)
             </MudItem>
 
             <MudItem xs="12" md="6">
-                <MudSelect T="WordType" Label="Type" @bind-Value="_command.Type" For="@(() => _command.Type)" Required="true" Immediate="true" Variant="Variant.Outlined">
+                @* REMOVED Immediate="true" as per your finding it caused issues *@
+                <MudSelect T="WordType" Label="Type" @bind-Value="_command.Type" For="@(() => _command.Type)" Required="true" Variant="Variant.Outlined">
                     @if (_allWordTypesForSelect != null)
                     {
                         @foreach (var typeLookup in _allWordTypesForSelect)
                         {
-                            <MudSelectItem Value="@((WordType)typeLookup.Id)">@typeLookup.Name</MudSelectItem>
+                            <MudSelectItem T="WordType" @key="typeLookup.Id" Value="@((WordType)typeLookup.Id)">@typeLookup.Name</MudSelectItem>
                         }
                     }
                 </MudSelect>
@@ -51,12 +51,12 @@ else if (_command != null)
                 @if (_command.Type == WordType.Noun)
                 {
                     <MudSelect T="Gender?" Label="Gender" @bind-Value="_command.Gender" For="@(() => _command.Gender)" Required="@(_command.Type == WordType.Noun)" Variant="Variant.Outlined">
-                        <MudSelectItem Value="@((Gender?)null)">(Select Gender)</MudSelectItem>
+                        <MudSelectItem T="Gender?" Value="@((Gender?)null)">(Select Gender)</MudSelectItem>
                         @if (_allGendersForSelect != null)
                         {
                             @foreach (var genderLookup in _allGendersForSelect)
                             {
-                                <MudSelectItem Value="@((Gender)genderLookup.Id)">@genderLookup.Name</MudSelectItem>
+                                <MudSelectItem T="Gender?" @key="genderLookup.Id" Value="@((Gender)genderLookup.Id)">@genderLookup.Name</MudSelectItem>
                             }
                         }
                     </MudSelect>
@@ -97,7 +97,7 @@ else if (_command != null)
                     {
                         @foreach (var topic in _allTopicsForSelect)
                         {
-                            <MudSelectItem Value="@topic.Name">@topic.Name</MudSelectItem>
+                            <MudSelectItem T="string" @key="topic.Id" Value="@topic.Name">@topic.Name</MudSelectItem> @* ADDED @key and T, assuming TopicDto has Id *@
                         }
                     }
                 </MudSelect>
@@ -130,19 +130,22 @@ else if (_command != null)
                 </MudField>
             </MudItem>
 
-            <MudItem xs="12" Class="mt-4">
-                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@_isSaving" Class="mr-2">
-                    @if (_isSaving)
-                    {
-                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-                        <MudText Class="ms-2">Saving...</MudText>
-                    }
-                    else
-                    {
-                        <MudText>Update Word</MudText>
-                    }
-                </MudButton>
-                <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/words"))">Cancel</MudButton>
+            <MudItem xs="12" Class="mt-4 d-flex justify-space-between">
+                <div>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@_isSaving" Class="mr-2">
+                        @if (_isSaving)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                            <MudText Class="ms-2">Saving...</MudText>
+                        }
+                        else
+                        {
+                            <MudText>Update Word</MudText>
+                        }
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/words"))">Cancel</MudButton>
+                </div>
+                <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ConfirmDeleteWord" Disabled="@_isSaving" StartIcon="@Icons.Material.Filled.Delete">Delete Word</MudButton>
             </MudItem>
         </MudGrid>
     </EditForm>
@@ -161,62 +164,66 @@ else if (_command != null)
     private List<WordTypeLookupDto> _allWordTypesForSelect = new();
     private List<GenderLookupDto> _allGendersForSelect = new();
 
-    protected override async Task OnInitializedAsync()
+    [Inject] private IDialogService DialogService { get; set; } = default!;
+
+    private async Task LoadWordAndLookups()
     {
-        _isLoading = true;
         try
         {
-            var wordDtoTask = WordService.GetWordByIdAsync(Id);
-            var topicsTask = TopicService.GetAllTopicsAsync();
-            var wordTypesTask = WordTypeLookupService.GetAllAsync();
-            var gendersTask = GenderLookupService.GetAllAsync(excludeNone: true);
+            // Fetch data sequentially
+            var wordDto = await WordService.GetWordByIdAsync(Id);
 
-            await Task.WhenAll(wordDtoTask, topicsTask, wordTypesTask, gendersTask);
-
-            var wordDto = await wordDtoTask;
-            _allTopicsForSelect = await topicsTask;
-            _allWordTypesForSelect = await wordTypesTask;
-            _allGendersForSelect = await gendersTask;
-
-            if (wordDto == null)
+            if (wordDto == null) // Check immediately after fetching the primary data
             {
-                Snackbar.Add("Word not found.", Severity.Error);
+                Snackbar.Add("Word not found. It may have been deleted.", Severity.Warning);
                 Navigation.NavigateTo("/words");
-                _isLoading = false; // Stop loading if word not found
-                return;
+                return; // Exit early
             }
 
+            // Now fetch related lookup data
+            _allTopicsForSelect = await TopicService.GetAllTopicsAsync();
+            _allWordTypesForSelect = await WordTypeLookupService.GetAllAsync();
+            _allGendersForSelect = await GenderLookupService.GetAllAsync(excludeNone: true);
+
+            // Proceed with populating the command
             _originalGermanText = wordDto.GermanText;
             _command = new UpdateWordCommand
                 {
                     Id = wordDto.Id,
                     GermanText = wordDto.GermanText,
-                    EnglishTranslation = wordDto.EnglishTranslation.Any() ? new List<string>(wordDto.EnglishTranslation) : new List<string> { "" },
-                    SpanishTranslation = wordDto.SpanishTranslation.Any() ? new List<string>(wordDto.SpanishTranslation) : new List<string> { "" },
+                    EnglishTranslation = wordDto.EnglishTranslation?.Any() == true ? new List<string>(wordDto.EnglishTranslation) : new List<string> { "" },
+                    SpanishTranslation = wordDto.SpanishTranslation?.Any() == true ? new List<string>(wordDto.SpanishTranslation) : new List<string> { "" },
                     Type = wordDto.Type,
-                    Gender = wordDto.Gender, // It can be null if not a noun or not set
-                    TopicNames = new List<string>(wordDto.TopicNames),
-                    ExampleSentences = wordDto.ExampleSentences.Any() ? new List<string>(wordDto.ExampleSentences) : new List<string> { "" },
-                    Synonyms = wordDto.Synonyms.Any() ? new List<string>(wordDto.Synonyms) : new List<string> { "" }
+                    Gender = wordDto.Gender,
+                    TopicNames = new List<string>(wordDto.TopicNames ?? Enumerable.Empty<string>()),
+                    ExampleSentences = wordDto.ExampleSentences?.Any() == true ? new List<string>(wordDto.ExampleSentences) : new List<string> { "" },
+                    Synonyms = wordDto.Synonyms?.Any() == true ? new List<string>(wordDto.Synonyms) : new List<string> { "" }
                 };
             _selectedTopicNamesForForm = new List<string>(_command.TopicNames);
         }
         catch (Exception ex)
         {
             Snackbar.Add($"Error loading word details: {ex.Message}", Severity.Error);
-            Console.WriteLine($"Error loading word details: {ex.Message}{Environment.NewLine}{ex.StackTrace}");
-            Navigation.NavigateTo("/words"); // Navigate away if loading fails
-        }
-        finally
-        {
-            _isLoading = false;
+            Console.WriteLine($"Error loading word details for Edit: {ex.Message}{Environment.NewLine}{ex.StackTrace}");
+            Navigation.NavigateTo("/words");
         }
     }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        // StateHasChanged(); // If you want spinner to show immediately before async
+        await LoadWordAndLookups();
+        _isLoading = false;
+        // StateHasChanged(); // To update UI after loading is complete
+    }
+
 
     private async Task HandleValidSubmit()
     {
         if (_command == null) return;
         _isSaving = true;
+        // StateHasChanged(); // Handled by EditForm or finally block
 
         try
         {
@@ -234,6 +241,7 @@ else if (_command != null)
             {
                 Snackbar.Add("Nouns must have a Gender selected.", Severity.Error);
                 _isSaving = false;
+                // StateHasChanged();
                 return;
             }
 
@@ -247,22 +255,30 @@ else if (_command != null)
             {
                 Snackbar.Add($"Validation Error: {error.ErrorMessage}", Severity.Warning);
             }
+            _isSaving = false; // Reset saving state on validation error
+                               // StateHasChanged();
         }
         catch (Exception ex)
         {
             Snackbar.Add($"Error updating word: {ex.Message}", Severity.Error);
             Console.WriteLine($"Error updating word: {ex.Message}{Environment.NewLine}{ex.StackTrace}");
+            _isSaving = false; // Reset saving state on general error
+                               // StateHasChanged();
         }
         finally
         {
-            _isSaving = false;
+            // If not navigating away due to an error, ensure _isSaving is reset and UI updates
+            if (Navigation.Uri.Contains($"/words/edit/{Id}")) // Check if still on the edit page
+            {
+                _isSaving = false; // Ensure it's false if an error occurred before navigation
+            }
+            // StateHasChanged(); // May not be needed if navigation occurs or other UI updates trigger it
         }
     }
 
     private void AddListItem(List<string> list)
     {
         list.Add("");
-        StateHasChanged();
     }
 
     private void RemoveListItem(List<string> list, int index)
@@ -275,6 +291,38 @@ else if (_command != null)
         {
             list[0] = "";
         }
-        StateHasChanged();
+    }
+
+    private async Task ConfirmDeleteWord()
+    {
+        if (_command == null) return;
+
+        var parameters = new DialogParameters<DeleteConfirmationDialog>
+            {
+                [nameof(DeleteConfirmationDialog.ContentText)] = $"Are you sure you want to delete the word '{_command.GermanText}'?"
+            };
+
+        var dialog = DialogService.Show<DeleteConfirmationDialog>("Confirm Deletion", parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            _isSaving = true;
+            StateHasChanged();
+            try
+            {
+                await WordService.DeleteWordAsync(Id);
+                Snackbar.Add("Word deleted successfully.", Severity.Success);
+                Navigation.NavigateTo("/words"); // Navigate away after successful delete
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting word: {ex.Message}", Severity.Error);
+                Console.WriteLine($"Error deleting word: {ex.Message}{Environment.NewLine}{ex.StackTrace}");
+                _isSaving = false; // Reset saving flag on error
+                StateHasChanged();
+            }
+            // No finally _isSaving = false here because successful delete navigates away
+        }
     }
 }
