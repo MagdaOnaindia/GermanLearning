@@ -30,6 +30,7 @@ namespace GermanLearning.PostgreInfrastructure
             // Repositories
             services.AddScoped<IWordRepository, WordRepository>();
             services.AddScoped<IExerciseRepository, ExerciseRepository>();
+            services.AddScoped<ITopicRepository, TopicRepository>();
             services.AddSingleton<IDateTimeService, DateTimeService>();
 
             return services;

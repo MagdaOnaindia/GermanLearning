@@ -1,17 +1,18 @@
-﻿using GermanLearning.Domain.Entities;
+﻿// GermanLearning.Domain/Repositories/Interfaces/IWordRepository.cs
+using GermanLearning.Domain.Entities;
 using GermanLearning.Domain.Enums;
-
-namespace GermanLearning.Domain.Repositories.Interfaces;
 
 public interface IWordRepository
 {
-    Task<Word?> GetByIdAsync(Guid id);
-    Task<List<Word>> GetAllAsync();
+    Task<Word?> GetByIdAsync(Guid id, bool includeTopics = false); // Add includeTopics
+    Task<List<Word>> GetAllAsync(bool includeTopics = false); // Add includeTopics
     Task AddAsync(Word word);
     Task UpdateAsync(Word word);
     Task DeleteAsync(Guid id);
-    Task<List<Word>> GetByTypeAsync(WordType type);
-    Task<List<Word>> GetByTopicAsync(string topic);
-    Task<List<Word>> GetByTopicAndTypeAsync(string topic, WordType type);
-    Task SaveAsync(); // Instead of SaveChangesAsync
+    Task<List<Word>> GetByTypeAsync(WordType type, bool includeTopics = false); // Add includeTopics
+    Task<List<Word>> GetByTopicNameAsync(string topicName, bool includeTopics = false); // New method name
+    Task<List<Word>> GetByTopicNameAndTypeAsync(string topicName, WordType type, bool includeTopics = false); // New or ensure this exists
+
+    // Task<List<Word>> GetByTopicAndTypeAsync(string topic, WordType type); // Review this
+    Task SaveAsync();
 }

@@ -1,164 +1,219 @@
 ﻿@page "/words"
 @using GermanLearning.Application.DTO.Vocabulary
+@using GermanLearning.Application.DTOs.Vocabulary
+@using GermanLearning.Domain.Enums 
+
 @inject IWordService WordService
-@rendermode InteractiveServer
+@inject ITopicService TopicService // <<< INJECT ITOPICSERVICE
 @inject NavigationManager Navigation
+@rendermode InteractiveServer
 
 <MudThemeProvider />
-<MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
+<MudPopoverProvider />
 
-    <MudText Typo="Typo.h5">Vocabulary List</MudText>
+<MudText Typo="Typo.h5">Vocabulary List</MudText>
+<MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo("/words/add"))" Style="margin-bottom: 20px;">Add New Word</MudButton>
 
-    <MudGrid>
-        <MudItem xs="12" sm="6" md="3">
-            <MudSelect T="WordType" Label="Type" @bind-Value="_selectedType">
-                <MudSelectItem Value="WordType.None">(All)</MudSelectItem>
-                @foreach (var type in Enum.GetValues(typeof(WordType)).Cast<WordType>().Where(t => t != WordType.None))
+<MudGrid Class="mb-4">
+    <MudItem xs="12" sm="6" md="3">
+        @* Bind to the int value of the enum for filtering against WordTypeId *@
+        <MudSelect T="int?" Label="Type" @bind-Value="_selectedWordTypeId" Clearable="true">
+            <MudSelectItem Value="@((int?)null)">(All)</MudSelectItem>
+            @foreach (var typeLookup in _allWordTypes)
+            {
+                <MudSelectItem Value="@typeLookup.Id">@typeLookup.Name</MudSelectItem>
+            }
+        </MudSelect>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudSelect T="int?" Label="Gender" @bind-Value="_selectedGenderId" Clearable="true">
+            <MudSelectItem Value="@((int?)null)">(All)</MudSelectItem>
+            @foreach (var genderLookup in _allGenders)
+            {
+                <MudSelectItem Value="@genderLookup.Id">@genderLookup.Name</MudSelectItem>
+            }
+        </MudSelect>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudSelect T="string" Label="Topic" MultiSelection="true" @bind-SelectedValues="_selectedTopicNames" Clearable="true" SelectAll="true" SelectAllText="Select All Topics">
+            @if (_allTopicsForFilter != null)
+            {
+                @foreach (var topic in _allTopicsForFilter)
                 {
-                    <MudSelectItem Value="@type">@type</MudSelectItem>
+                    <MudSelectItem Value="@topic.Name">@topic.Name</MudSelectItem>
                 }
-            </MudSelect>
-        </MudItem>
+            }
+        </MudSelect>
+    </MudItem>
 
-        <MudItem xs="12" sm="6" md="3">
-            <MudSelect T="Gender" Label="Gender" @bind-Value="_selectedGender">
-                <MudSelectItem Value="Gender.None">(All)</MudSelectItem>
-                @foreach (var gender in Enum.GetValues(typeof(Gender)).Cast<Gender>().Where(g => g != Gender.None))
-                {
-                    <MudSelectItem Value="@gender">@gender</MudSelectItem>
-                }
-            </MudSelect>
-        </MudItem>
+    <MudItem xs="12" sm="6" md="3" Class="d-flex align-center">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ApplyFilters" Class="mr-2">Filter</MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="ClearFilters">Clear</MudButton>
+    </MudItem>
+</MudGrid>
 
-        <MudItem xs="12" sm="6" md="3">
-            <MudSelect T="string" Label="Topic" MultiSelection="true" @bind-SelectedValues="_selectedTopics"  >
-                @foreach (var topic in _allTopics)
-                {
-                    <MudSelectItem Value="@topic">@topic</MudSelectItem>
-                }
-            </MudSelect>
-        </MudItem>
-
-        <MudItem xs="12" sm="6" md="3" Class="d-flex align-center">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ApplyFilters">
-                Filter
-            </MudButton>
-        </MudItem>
-    </MudGrid>
-
-    <MudTable  Items="_filteredWords" Hover="true" Bordered="true" Striped="true" SortLabel="Sort by" FixedHeader="true" >
+@if (_filteredWords == null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="_filteredWords" Hover="true" Bordered="true" Striped="true" Dense="true" FixedHeader="true" Height="calc(100vh - 350px)">
         <HeaderContent>
-            <MudTh>
-                <MudTableSortLabel SortBy="new Func<WordDto, object>(w => w.GermanText)">German</MudTableSortLabel>
-            </MudTh>
-            <MudTh>
-                <MudTableSortLabel SortBy="new Func<WordDto, object>(w => w.EnglishTranslation)">EN</MudTableSortLabel>
-            </MudTh>
-            <MudTh>
-                <MudTableSortLabel SortBy="new Func<WordDto, object>(w => w.SpanishTranslation)">ES</MudTableSortLabel>
-            </MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<WordDto, object>(w => w.GermanText)">German</MudTableSortLabel></MudTh>
+            <MudTh>EN Translations</MudTh>
+            <MudTh>ES Translations</MudTh>
             <MudTh>Type</MudTh>
             <MudTh>Gender</MudTh>
-            <MudTh>Topic</MudTh>
+            <MudTh>Topics</MudTh>
             <MudTh>Synonyms</MudTh>
             <MudTh>Examples</MudTh>
-            <MudTh></MudTh>
+            <MudTh>Actions</MudTh>
         </HeaderContent>
-
         <RowTemplate>
-            <MudTd>@context.GermanText</MudTd>
-            <MudTd>@context.EnglishTranslation</MudTd>
-            <MudTd>@context.SpanishTranslation</MudTd>
-            <MudTd>@context.Type</MudTd>
-            <MudTd>@context.Gender?.ToString()</MudTd>
-            <MudTd>@context.Topic</MudTd>
-            <MudTd>@string.Join(", ", context.Synonyms)</MudTd>
-            <MudTd>
-                <MudButton Variant="Variant.Outlined"
-                           Color="Color.Info"
-                           Size="Size.Small"
-                           OnClick="@(() => TogglePopover(context.Id))">
-                    Examples
-                </MudButton>
-
-                <MudPopover Open="@(_openPopoverId == context.Id)"
-                            AnchorOrigin="Origin.BottomCenter"
-                            TransformOrigin="Origin.TopCenter"
-                            CloseOnOutsideClick="true"
-                            Paper="true"
-                            OffsetY="true">
-                    <MudPaper Class="px-4 py-2">
-                        <MudText Typo="Typo.subtitle2">Example sentences:</MudText>
-                        <ul>
-                            @foreach (var example in context.ExampleSentences)
-                            {
-                                <li>@example</li>
-                            }
-                        </ul>
-                    </MudPaper>
-                </MudPopover>
+            <MudTd DataLabel="German">@context.GermanText</MudTd>
+            <MudTd DataLabel="EN Translations">@string.Join(", ", context.EnglishTranslation)</MudTd>
+            <MudTd DataLabel="ES Translations">@string.Join(", ", context.SpanishTranslation)</MudTd>
+            <MudTd DataLabel="Type">@context.TypeString</MudTd>
+            <MudTd DataLabel="Gender">@context.GenderString</MudTd>
+            <MudTd DataLabel="Topics">@string.Join(", ", context.TopicNames)</MudTd>
+            <MudTd DataLabel="Synonyms">@string.Join(", ", context.Synonyms)</MudTd>
+            <MudTd DataLabel="Examples">
+                @if (context.ExampleSentences.Any())
+                {
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" OnClick="@(() => ShowExamples(context.ExampleSentences))">
+                        View (@context.ExampleSentences.Count)
+                    </MudButton>
+                }
+                else
+                {
+                    <MudText Typo="Typo.caption">None</MudText>
+                }
             </MudTd>
-            <MudTd>
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => EditWord(context.Id))" />
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteWord(context.Id))" />
+            <MudTd DataLabel="Actions">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Title="Edit" Color="Color.Primary" Size="Size.Small" OnClick="@(() => EditWord(context.Id))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Title="Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => ConfirmDelete(context.Id, context.GermanText))" />
             </MudTd>
         </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
     </MudTable>
-
+}
 
 @code {
-    private List<WordDto> _allWords = new();
-    private List<WordDto> _filteredWords = new();
-    private List<string> _allTopics = new();
+    private List<WordDto>? _allWords;
+    private List<WordDto>? _filteredWords;
 
-    private WordType _selectedType = WordType.None;
-    private Gender _selectedGender = Gender.None;
-    private IEnumerable<string> _selectedTopics;
+    // For filter dropdowns
+    private List<TopicDto> _allTopicsForFilter = new();
+    private List<WordTypeLookUpDto> _allWordTypes = new();
+    private List<GenderLookUpDto> _allGenders = new();
 
-    private Guid? _openPopoverId;
+    // Bound filter values
+    private int? _selectedWordTypeId;
+    private int? _selectedGenderId;
+    private IEnumerable<string> _selectedTopicNames = new List<string>();
+
+    [Inject] private IDialogService DialogService { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
 
 
     protected override async Task OnInitializedAsync()
     {
-        _allWords = await WordService.GetAllWordsAsync();
-
-        _allTopics = _allWords.Select(w => w.Topic).Where(t => !string.IsNullOrWhiteSpace(t)).Distinct().ToList();
-
-        _filteredWords = _allWords;
+        await LoadInitialData();
     }
 
-
-
-    private void TogglePopover(Guid id)
+    private async Task LoadInitialData()
     {
-        if (_openPopoverId == id)
-            _openPopoverId = null;
-        else
-            _openPopoverId = id;
-    }
+        _allWords = await WordService.GetAllWordsAsync();
+        _allTopicsForFilter = await TopicService.GetAllTopicsAsync(); // Fetch all topics
 
+        // Populate WordType and Gender lookups (replace with service calls if available)
+        _allWordTypes = Enum.GetValues<WordType>()
+                            .Select(wt => new WordTypeLookUpDto { Id = (int)wt, Name = wt.ToString() })
+                            .ToList();
+        _allGenders = Enum.GetValues<Gender>()
+                            .Select(g => new GenderLookUpDto { Id = (int)g, Name = g.ToString() })
+                            .Where(g => g.Id != (int)Gender.None) // Exclude "None" if it's just a placeholder
+                            .ToList();
+        
+        ApplyFilters(); // Apply initial (empty) filters
+    }
 
     private void ApplyFilters()
     {
-        _filteredWords = _allWords
-            .Where(w =>
-                (_selectedType == WordType.None || w.Type == _selectedType) &&
-                (_selectedGender == Gender.None || w.Gender == _selectedGender) &&
-                (_selectedTopics == null || _selectedTopics.Count() == 0 || (_selectedTopics.Contains(w.Topic ?? string.Empty)))
-            ).ToList();
+        if (_allWords == null)
+        {
+            _filteredWords = new List<WordDto>();
+            return;
+        }
 
+        IEnumerable<WordDto> tempFiltered = _allWords;
+
+        if (_selectedWordTypeId.HasValue)
+        {
+            // Compare against the integer value of the enum
+            tempFiltered = tempFiltered.Where(w => (int)w.Type == _selectedWordTypeId.Value);
+        }
+
+        if (_selectedGenderId.HasValue)
+        {
+            tempFiltered = tempFiltered.Where(w => w.Gender.HasValue && (int)w.Gender.Value == _selectedGenderId.Value);
+        }
+
+        if (_selectedTopicNames.Any())
+        {
+            tempFiltered = tempFiltered.Where(w => w.TopicNames.Any(tn => _selectedTopicNames.Contains(tn)));
+        }
+
+        _filteredWords = tempFiltered.ToList();
+    }
+
+    private void ClearFilters()
+    {
+        _selectedWordTypeId = null;
+        _selectedGenderId = null;
+        _selectedTopicNames = new List<string>();
+        ApplyFilters();
     }
 
     private void EditWord(Guid id)
     {
         Navigation.NavigateTo($"/words/edit/{id}");
-
     }
 
-    private void DeleteWord(Guid id)
+    private async Task ConfirmDelete(Guid id, string wordText)
     {
-        // Confirma y elimina
+        var parameters = new DialogParameters<DeleteConfirmationDialog>();
+        parameters.Add(x => x.ContentText, $"Are you sure you want to delete the word '{wordText}'?");
+        
+        var dialog = DialogService.Show<DeleteConfirmationDialog>("Confirm Deletion", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            try
+            {
+                await WordService.DeleteWordAsync(id);
+                Snackbar.Add($"Word '{wordText}' deleted successfully.", Severity.Success);
+                _allWords?.RemoveAll(w => w.Id == id); // Remove from local list
+                ApplyFilters(); // Re-apply filters
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting word: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private void ShowExamples(List<string> examples)
+    {
+        var parameters = new DialogParameters<ExampleDialog> { ["Examples"] = examples };
+        DialogService.Show<ExampleDialog>("Example Sentences", parameters);
     }
 }

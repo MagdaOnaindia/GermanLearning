@@ -15,6 +15,7 @@ public static class DependencyInjection
         // Register Services
         services.AddScoped<IWordService, WordService>();
         services.AddScoped<IExerciseService, ExerciseService>();
+        services.AddScoped<ITopicService, TopicService>();
 
         // Register Validators (FluentValidation)
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());

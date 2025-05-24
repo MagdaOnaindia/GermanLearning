@@ -1,14 +1,31 @@
-﻿// GermanLearning.PostgreInfrastructure/Contexts/AppDbContext.cs
-using GermanLearning.Domain.Entities;
+﻿using GermanLearning.Domain.Entities;
+using GermanLearning.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using System; // For Enum, Cast, Select
+using System.Linq; // For Enum, Cast, Select
 
 namespace GermanLearning.PostgreInfrastructure.Contexts
 {
+    // POCOs can be defined here as private nested classes for encapsulation
+    internal class WordTypeLookup
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    internal class GenderLookup
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
     public class AppDbContext : DbContext
     {
         public DbSet<Word> Words { get; set; }
         public DbSet<Exercise> Exercises { get; set; }
-        public DbSet<ExerciseResult> ExerciseResults { get; set; } // Asegúrate de que este DbSet esté aquí
+        public DbSet<ExerciseResult> ExerciseResults { get; set; }
+        public DbSet<Topic> Topics { get; set; }
+        // No DbSet for WordTypeLookup or GenderLookup, as they are not queryable domain entities
 
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options) { }
@@ -17,88 +34,128 @@ namespace GermanLearning.PostgreInfrastructure.Contexts
         {
             base.OnModelCreating(modelBuilder);
 
-            // Configuración para la entidad Word
+            // --- Define and Seed WordTypes Table ---
+            modelBuilder.Entity<WordTypeLookup>(entity =>
+            {
+                entity.ToTable("WordTypes"); // Explicitly name the table
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedNever();
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
+
+                entity.HasData(
+                    Enum.GetValues(typeof(WordType))
+                        .Cast<WordType>()
+                        .Select(e => new WordTypeLookup { Id = (int)e, Name = e.ToString() })
+                );
+            });
+
+            // --- Define and Seed Genders Table ---
+            modelBuilder.Entity<GenderLookup>(entity =>
+            {
+                entity.ToTable("Genders"); // Explicitly name the table
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedNever();
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
+
+                entity.HasData(
+                    Enum.GetValues(typeof(Gender))
+                        .Cast<Gender>()
+                        .Select(e => new GenderLookup { Id = (int)e, Name = e.ToString() })
+                );
+            });
+
+            // --- Configure Word Entity ---
             modelBuilder.Entity<Word>(entity =>
             {
-                // Clave Primaria (Id heredado de EntityBase)
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id)
-                    .HasColumnType("uuid"); // Mapear Guid a uuid de PostgreSQL
+                entity.Property(e => e.Id).HasColumnType("uuid"); // Correct for PostgreSQL Guid
 
-                // Propiedades requeridas y de tipo específico
                 entity.Property(e => e.GermanText).IsRequired();
-                // WordType y Gender (enum) se mapean a int por defecto, lo cual está bien.
 
-                // Mapear listas de strings a JSONB
+                // Map List<string> to jsonb
                 entity.Property(e => e.EnglishTranslation).HasColumnType("jsonb").IsRequired();
                 entity.Property(e => e.SpanishTranslation).HasColumnType("jsonb").IsRequired();
                 entity.Property(e => e.ExampleSentences).HasColumnType("jsonb");
                 entity.Property(e => e.Synonyms).HasColumnType("jsonb");
 
-                // Timestamps
-                entity.Property(e => e.CreatedAt).IsRequired();
-                // UpdatedAt es nullable, por lo que EF Core lo manejará correctamente.
+                // Word.Type (enum) maps to WordTypeId (int) column
+                entity.Property(e => e.Type)
+                      .HasConversion<int>()
+                      .HasColumnName("WordTypeId") // Column in Words table
+                      .IsRequired();
 
-                // Si Word tuviera una colección de Exercises (para navegación bidireccional en muchos-a-muchos)
-                // se configuraría aquí, pero dado tu modelo actual, la relación se define desde Exercise.
+                // Word.Gender (nullable enum) maps to GenderId (int?) column
+                entity.Property(e => e.Gender)
+                      .HasConversion<int?>()
+                      .HasColumnName("GenderId") // Column in Words table
+                      .IsRequired(false); // Gender is nullable
+
+                // Foreign Key Constraints to Lookup Tables
+                entity.HasOne<WordTypeLookup>()
+                      .WithMany()
+                      .HasForeignKey("WordTypeId")
+                      .HasPrincipalKey(nameof(WordTypeLookup.Id));
+
+                entity.HasOne<GenderLookup>()
+                      .WithMany()
+                      .HasForeignKey("GenderId")
+                      .HasPrincipalKey(nameof(GenderLookup.Id))
+                      .IsRequired(false); // FK is nullable if GenderId is nullable
+
+                // Many-to-Many relationship with Topic
+                entity.HasMany(w => w.Topics)
+                      .WithMany(t => t.Words)
+                      .UsingEntity("WordTopic"); // Defines the join table name
+
+                entity.Property(e => e.CreatedAt).IsRequired();
+                // UpdatedAt is nullable, EF Core handles it.
             });
+
 
             // Configuración para la entidad Exercise
             modelBuilder.Entity<Exercise>(entity =>
             {
-                // Clave Primaria (Id heredado de EntityBase)
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id)
-                    .HasColumnType("uuid"); // Mapear Guid a uuid
+                entity.Property(e => e.Id).HasColumnType("uuid");
 
-                // ExerciseType y DifficultyLevel (enum) se mapean a int por defecto.
-
-                // Relación Muchos-a-Muchos entre Exercise y Word
-                // EF Core creará una tabla de unión automáticamente.
-                // Si Word no tiene una propiedad de navegación List<Exercise>,
-                // .WithMany() sin parámetros es suficiente para una relación unidireccional desde Exercise.
-                // Usamos UsingEntity para nombrar explícitamente la tabla de unión.
+                // Many-to-Many relationship with Word
                 entity.HasMany(e => e.Words)
-                      .WithMany() // Asumiendo que Word no tiene una propiedad de navegación List<Exercise>
-                      .UsingEntity("ExerciseWord"); // Nombre explícito para la tabla de unión (ej. ExerciseId, WordId)
+                      .WithMany() // Assuming Word does not have a direct List<Exercise> navigation
+                      .UsingEntity("ExerciseWord"); // Defines the join table name
 
+                entity.Property(e => e.Difficulty).IsRequired(); // Assuming DifficultyLevel enum maps to int
+                entity.Property(e => e.Type).IsRequired(); // Assuming ExerciseType enum maps to int
                 entity.Property(e => e.GeneratedAt).IsRequired();
             });
 
             // Configuración para la entidad ExerciseResult
             modelBuilder.Entity<ExerciseResult>(entity =>
             {
-                // Clave Primaria (Id definido en ExerciseResult)
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id)
-                    .HasColumnType("uuid"); // Mapear Guid a uuid
+                entity.HasKey(er => er.Id); // EntityBase provides Id, but ExerciseResult defines its own Guid Id
+                entity.Property(er => er.Id).HasColumnType("uuid");
 
-                // Relación Uno-a-Muchos con Exercise
-                // Un ExerciseResult pertenece a un Exercise.
-                // Un Exercise puede tener muchos ExerciseResults (aunque Exercise no tenga List<ExerciseResult>).
-                entity.HasOne(er => er.Exercise)         // Propiedad de navegación en ExerciseResult
-                      .WithMany()                      // Lado de Exercise (sin propiedad de navegación explícita en Exercise)
-                      .HasForeignKey(er => er.ExerciseId) // Clave foránea en ExerciseResult
-                      .IsRequired();                   // Un ExerciseResult siempre debe tener un Exercise asociado
+                // One-to-Many relationship with Exercise
+                entity.HasOne(er => er.Exercise)
+                      .WithMany() // Assuming Exercise does not have List<ExerciseResult>
+                      .HasForeignKey(er => er.ExerciseId)
+                      .IsRequired();
 
-                entity.Property(e => e.CompletedAt).IsRequired();
+                entity.Property(er => er.CorrectAnswers).IsRequired();
+                entity.Property(er => er.TotalQuestions).IsRequired();
+                entity.Property(er => er.CompletedAt).IsRequired();
             });
 
-            // Puedes añadir aquí configuraciones globales para tipos de propiedad si lo prefieres,
-            // aunque ser explícito por entidad como arriba suele ser más claro.
-            // Ejemplo (no necesario si ya lo hiciste por entidad):
-            // foreach (var entityType in modelBuilder.Model.GetEntityTypes())
-            // {
-            //     foreach (var property in entityType.GetProperties())
-            //     {
-            //         if (property.ClrType == typeof(Guid) && property.Name.EndsWith("Id"))
-            //         {
-            //             property.SetColumnType("uuid");
-            //         }
-            //         // Podrías intentar generalizar jsonb pero es más complejo
-            //         // ya que depende del nombre de la propiedad o atributos.
-            //     }
-            // }
+            // Configuración para la entidad Topic
+            modelBuilder.Entity<Topic>(entity =>
+            {
+                entity.HasKey(t => t.Id);
+                entity.Property(t => t.Id).HasColumnType("uuid");
+                entity.Property(t => t.Name).IsRequired().HasMaxLength(100); // Example max length
+                entity.HasIndex(t => t.Name).IsUnique(); // Good practice for topic names
+
+                // Description is nullable string, EF Core handles it.
+                // The many-to-many with Word is already defined from Word's perspective.
+            });
         }
     }
 }

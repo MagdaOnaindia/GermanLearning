@@ -1,0 +1,34 @@
+﻿@* C:\Users\magda\source\repos\GermanLearning\source\GermanLearning.WebApp\Components\Pages\Words\ExampleDialog.razor *@
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Example Sentences</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (Examples != null && Examples.Any())
+        {
+            <MudList T="string" Clickable="false">
+                @* <<< Specify T="string" here *@
+                @foreach (var example in Examples)
+                {
+                    <MudListItem T="string" Text="@example" /> @* <<< Specify T="string" here *@
+                }
+            </MudList>
+        }
+        else
+        {
+            <MudText>No examples provided.</MudText>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Close">Close</MudButton> @* Added Color="Color.Primary" for consistency *@
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public List<string> Examples { get; set; } = new List<string>();
+
+    void Close() => MudDialog.Close(DialogResult.Ok(true));
+}

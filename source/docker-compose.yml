@@ -3,22 +3,24 @@ version: '3.8'
 services:
   germanlearning.webapp:
     image: ${DOCKER_REGISTRY-}germanlearningwebapp
-    container_name: germanlearning.webapp
+    container_name: germanlearning.webapp # Optional, but can be useful
     build:
       context: .
       dockerfile: GermanLearning.WebApp/Dockerfile
     ports:
-      - "5000:8080" # .NET Kestrel por defecto escucha en el puerto 8080 HTTP y 8081 HTTPS dentro del contenedor.
-      - "5001:8081" # Ajusta si tu Dockerfile expone otros puertos o si configuras Kestrel de otra forma.
+      - "5000:8080"
+      - "5001:8081"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development # O Production
-      - ASPNETCORE_URLS=http://+:8080;https://+:8081 # Asegura que Kestrel escuche en todas las IPs dentro del contenedor
-
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080;https://+:8081
+    depends_on: # <------------------- CRUCIAL
+      germanlearning.database:
+        condition: service_healthy # <---- WAITS FOR HEALTHY DB
 
   germanlearning.database:
     image: postgres:latest
-    container_name: germanlearning.database
-    environment: 
+    container_name: germanlearning.database.container # Different from service name for clarity if you wish
+    environment:
       - POSTGRES_DB=germanlearning
       - POSTGRES_USER=german
       - POSTGRES_PASSWORD=german
@@ -26,3 +28,9 @@ services:
       - ./.containers/german-db:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck: # <------------------- CRUCIAL
+      test: ["CMD-SHELL", "pg_isready -U german -d germanlearning"]
+      interval: 10s   # Check every 10 seconds
+      timeout: 5s     # Wait 5 seconds for the check to complete
+      retries: 5      # Try 5 times before marking as unhealthy
+      start_period: 30s # Grace period of 30s before first health check counts towards unhealthy
