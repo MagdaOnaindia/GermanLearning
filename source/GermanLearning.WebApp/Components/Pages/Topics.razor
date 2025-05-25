@@ -1,0 +1,290 @@
+﻿@page "/manage-topics"
+@using GermanLearning.Application.DTO.Vocabulary
+@using GermanLearning.Application.Interfaces
+@inject ITopicService TopicService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudPopoverProvider />
+
+<div class="manage-topics-container pa-4">
+<h3>Manage Topics</h3>
+
+<hr />
+
+<h4>Add New Topic</h4>
+<EditForm Model="_newTopic" OnValidSubmit="HandleAddTopicSubmit">
+    <DataAnnotationsValidator />
+    @* <ValidationSummary /> *@ @* Uncomment if you add validation attributes to a command/DTO *@
+
+    <div class="form-group">
+        <label for="topicName">Topic Name:</label>
+        <InputText id="topicName" class="form-control" @bind-Value="_newTopic.Name" />
+        <ValidationMessage For="@(() => _newTopic.Name)" />
+    </div>
+    <div class="form-group mt-2">
+        <label for="topicDescription">Description (Optional):</label>
+        <InputTextArea id="topicDescription" class="form-control" @bind-Value="_newTopic.Description" />
+    </div>
+    <button type="submit" class="btn btn-primary mt-2" disabled="@_isAdding">
+        @if (_isAdding)
+        {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            <span>Adding...</span>
+        }
+        else
+        {
+            <span>Add Topic</span>
+        }
+    </button>
+    @if (!string.IsNullOrWhiteSpace(_addError))
+    {
+        <div class="alert alert-danger mt-2" role="alert">
+            @_addError
+        </div>
+    }
+</EditForm>
+
+<hr class="my-4" />
+
+<h4>Existing Topics</h4>
+@if (_allTopics == null && _isLoadingTopics)
+{
+    <p><em>Loading topics...</em></p>
+}
+else if (_allTopics == null || !_allTopics.Any())
+{
+    <p><em>No topics found. Add some!</em></p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var topic in _allTopics)
+            {
+                <tr>
+                    @if (_editingTopic != null && _editingTopic.Id == topic.Id)
+                    {
+                        <td><InputText @bind-Value="_editingTopic.Name" class="form-control form-control-sm" /></td>
+                        <td><InputTextArea @bind-Value="_editingTopic.Description" class="form-control form-control-sm" rows="1" /></td>
+                        <td>
+                            <button class="btn btn-success btn-sm me-1" @onclick="HandleUpdateTopicSubmit" disabled="@_isEditing">
+                                @if (_isEditing && _currentEditingId == topic.Id)
+                                {
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                }
+                                else
+                                {
+                                    <span>Save</span>
+                                }
+                            </button>
+                            <button class="btn btn-secondary btn-sm" @onclick="CancelEdit">Cancel</button>
+                        </td>
+                    }
+                    else
+                    {
+                        <td>@topic.Name</td>
+                        <td>@topic.Description</td>
+                        <td>
+                            <button class="btn btn-primary btn-sm me-1" @onclick="() => StartEdit(topic)">Edit</button>
+                            <button class="btn btn-danger btn-sm" @onclick="() => ConfirmDelete(topic)" disabled="@_isDeleting">
+                                @if (_isDeleting && _currentDeletingId == topic.Id)
+                                {
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                }
+                                else
+                                {
+                                    <span>Delete</span>
+                                }
+                            </button>
+                        </td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@* Basic Confirmation Dialog (not as nice as MudDialog, but functional) *@
+@if (_showDeleteConfirmation)
+{
+    <div class="modal" tabindex="-1" style="display:block; background-color: rgba(0,0,0,0.5);" role="dialog">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close" @onclick="() => _showDeleteConfirmation = false" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete the topic: <strong>@_topicToDelete?.Name</strong>?</p>
+                    <p><small>This might affect words associated with this topic.</small></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="() => _showDeleteConfirmation = false">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="HandleDeleteTopicConfirmed">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+}
+</div>
+
+@code {
+    private class NewTopicModel // Simple model for the add form
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+    }
+
+    private NewTopicModel _newTopic = new();
+    private List<TopicDto>? _allTopics;
+    private TopicDto? _editingTopic; // For inline editing
+    private TopicDto? _topicToDelete;
+
+    private bool _isLoadingTopics = true;
+    private bool _isAdding = false;
+    private bool _isEditing = false;
+    private bool _isDeleting = false;
+    private Guid? _currentEditingId;
+    private Guid? _currentDeletingId;
+    private string? _addError;
+    private bool _showDeleteConfirmation = false;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTopics();
+    }
+
+    private async Task LoadTopics()
+    {
+        _isLoadingTopics = true;
+        try
+        {
+            _allTopics = await TopicService.GetAllTopicsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading topics: {ex.Message}");
+            // You might want to use ISnackbar here if you decide to add MudBlazor providers globally
+        }
+        finally
+        {
+            _isLoadingTopics = false;
+        }
+    }
+
+    private async Task HandleAddTopicSubmit()
+    {
+        if (string.IsNullOrWhiteSpace(_newTopic.Name))
+        {
+            _addError = "Topic name cannot be empty.";
+            return;
+        }
+        _isAdding = true;
+        _addError = null;
+        try
+        {
+            await TopicService.AddTopicAsync(_newTopic.Name, _newTopic.Description);
+            _newTopic = new NewTopicModel(); // Reset form
+            await LoadTopics(); // Refresh list
+                                // Optionally, add a success message
+        }
+        catch (Exception ex)
+        {
+            _addError = $"Error adding topic: {ex.Message}";
+            Console.WriteLine($"Error adding topic: {ex.Message}");
+        }
+        finally
+        {
+            _isAdding = false;
+        }
+    }
+
+    private void StartEdit(TopicDto topicToEdit)
+    {
+        // Create a copy for editing to avoid modifying the original list item directly until save
+        _editingTopic = new TopicDto
+            {
+                Id = topicToEdit.Id,
+                Name = topicToEdit.Name,
+                Description = topicToEdit.Description
+            };
+        _currentEditingId = topicToEdit.Id;
+    }
+
+    private void CancelEdit()
+    {
+        _editingTopic = null;
+        _currentEditingId = null;
+    }
+
+    private async Task HandleUpdateTopicSubmit()
+    {
+        if (_editingTopic == null || string.IsNullOrWhiteSpace(_editingTopic.Name))
+        {
+            // Add error feedback if needed
+            return;
+        }
+        _isEditing = true;
+        try
+        {
+            await TopicService.UpdateTopicAsync(_editingTopic.Id, _editingTopic.Name, _editingTopic.Description);
+            _editingTopic = null; // Exit edit mode
+            _currentEditingId = null;
+            await LoadTopics(); // Refresh list
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating topic: {ex.Message}");
+            // Add error feedback
+        }
+        finally
+        {
+            _isEditing = false;
+        }
+    }
+
+    private void ConfirmDelete(TopicDto topic)
+    {
+        _topicToDelete = topic;
+        _showDeleteConfirmation = true;
+    }
+
+    private async Task HandleDeleteTopicConfirmed()
+    {
+        if (_topicToDelete == null) return;
+
+        _isDeleting = true;
+        _currentDeletingId = _topicToDelete.Id;
+        _showDeleteConfirmation = false; // Hide confirmation dialog
+
+        try
+        {
+            await TopicService.DeleteTopicAsync(_topicToDelete.Id);
+            _topicToDelete = null; // Clear after deletion
+            await LoadTopics(); // Refresh list
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting topic: {ex.Message}");
+            // Add error feedback
+        }
+        finally
+        {
+            _isDeleting = false;
+            _currentDeletingId = null;
+        }
+    }
+}
